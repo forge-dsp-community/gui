@@ -6,7 +6,7 @@ plugins {
 // the web GUI: the build of the repository root (npm run build -> ../dist) goes into the assets
 val webDist = rootProject.layout.projectDirectory.dir("../dist")
 val copyWeb by tasks.registering(Sync::class) {
-    from(webDist)
+    from(webDist) { exclude("**/*.gz") }   // the compressed copies are for the ESP32 bridge
     into(layout.buildDirectory.dir("web"))
     doFirst { require(webDist.file("index.html").asFile.exists()) { "web GUI not built: run 'npm run build' in the repository root first" } }
 }
