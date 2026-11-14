@@ -7,7 +7,7 @@ import { identifyFlash, type FlashId } from "./boot/identify";
 import { deviceError, explain } from "./errors";
 import { autoPort, openNativeSerial, portsNative, type PortInfo } from "./transport/native";
 import { isNative } from "./native";
-import { androidPresent, isAndroid, openAndroidSerial } from "./android";
+import { androidPresent, androidRefreshMaster, isAndroid, openAndroidSerial } from "./android";
 import { openSim, simFlavours } from "./transport/sim";
 import { openWebSocket } from "./transport/websocket";
 import { t } from "./i18n/index.svelte";
@@ -747,6 +747,7 @@ export async function sendModc(n: number, before: Modc): Promise<string> {
   let err = "";
   for (const [reg, text] of modcWrites(n, total, before, app.device.modc[n])) err = (await writeRaw(reg, text)) || err;
   if (n !== total) historyTouch();
+  if (isAndroid()) androidRefreshMaster();   // the volume block may have changed (#29)
   return err;
 }
 

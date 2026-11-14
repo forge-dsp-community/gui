@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Forge DSP</string>
+    <string name="note_channel">Connection to the Forge</string>
+    <string name="note_online">Connected</string>
+    <string name="note_online_master">Connected · master %1$s dB</string>
+    <string name="note_connecting">Connecting …</string>
+    <string name="note_searching">No Forge at the USB port</string>
+    <string name="note_no_permission">USB permission missing: open the app once</string>
+    <string name="note_no_answer">The Forge does not answer</string>
+    <string name="perm_control">control the Forge DSP</string>
+    <string name="perm_control_desc">Send commands to the Forge DSP at the USB port and receive its answers and events.</string>
 </resources>

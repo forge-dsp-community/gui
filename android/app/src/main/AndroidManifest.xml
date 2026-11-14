@@ -2,13 +2,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-feature android:name="android.hardware.usb.host" android:required="true" />
 
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- other apps that send lines to the Forge or receive its answers and events (#29); the user grants it -->
+    <permission
+        android:name="io.github.psych0d0g.forgedsp.permission.CONTROL"
+        android:description="@string/perm_control_desc"
+        android:label="@string/perm_control"
+        android:protectionLevel="dangerous" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.ForgeDsp">
-        <!-- landscape for the 1024x600 head units; plugging the Forge in starts the app -->
+        <!-- the GUI, landscape for the 1024x600 head units -->
         <activity
             android:name=".ui.MainActivity"
             android:exported="true"
@@ -19,6 +31,15 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <!-- plugging the Forge in: permission and the service, without opening the GUI -->
+        <activity
+            android:name=".service.UsbAttachActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
@@ -26,5 +47,27 @@
                 android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/device_filter" />
         </activity>
+
+        <service
+            android:name=".service.ForgeService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
+
+        <receiver
+            android:name=".service.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".service.CommandReceiver"
+            android:exported="true"
+            android:permission="io.github.psych0d0g.forgedsp.permission.CONTROL">
+            <intent-filter>
+                <action android:name="io.github.psych0d0g.forgedsp.action.SEND" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>

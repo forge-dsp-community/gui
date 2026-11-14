@@ -82,6 +82,13 @@ Android-App (`android/`, Kotlin): die gebaute Web-App (`dist/`) als Assets in ei
 usb-serial-for-android, in die Seite gereicht als `window.ForgeAndroid` (`src/lib/android.ts`: Zeilen, rohe Bytes für den
 Bootloader, Baudrate, „Speichern unter“). Dateiauswahl über die Dateien-App des Systems, Firmware-Releases von der
 Pages-Seite. Bauen: `npm run build`, dann `gradle -p android assembleRelease` (JDK 17, Android-SDK 35, Gradle 8.10.2).
+Die Verbindung hält ein Hintergrunddienst (`android/…/service/`), auch ohne geöffnete Oberfläche; er startet beim
+Einstecken des Forge (ohne die Oberfläche zu öffnen) und mit dem Headunit. Er lässt auf Wunsch die Android-Lautstärke
+auf den Forge-Master (Steuerblock „Lautstärke“) wirken: spiegeln, spiegeln mit festem Android-Pegel oder als
+Remote-Lautstärke (Einstellungen › Android-App). Andere Apps senden mit der Berechtigung
+`io.github.psych0d0g.forgedsp.permission.CONTROL` Zeilen per Broadcast `io.github.psych0d0g.forgedsp.action.SEND`
+(Extra `line`, optional `id`, Paket `io.github.psych0d0g.forgedsp`) und bekommen `…action.ANSWER` (Extras `id`,
+`lines`, ggf. `error`) und die Ereignisse des Forge als `…action.EVENT` (Extra `line`).
 Die Seite *Fahrzeug* und das Touch-Layout gehen auch im Browser: `?skin=touch&page=car`. Die APK baut
 `.github/workflows/android.yml` (jeder Push: Artefakt, Tag `v*`: an das Release), signiert mit dem Debug-Schlüssel.
 

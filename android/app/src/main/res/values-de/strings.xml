@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="note_channel">Verbindung zum Forge</string>
+    <string name="note_online">Verbunden</string>
+    <string name="note_online_master">Verbunden · Master %1$s dB</string>
+    <string name="note_connecting">Verbinde …</string>
+    <string name="note_searching">Kein Forge am USB-Anschluss</string>
+    <string name="note_no_permission">USB-Erlaubnis fehlt: App einmal öffnen</string>
+    <string name="note_no_answer">Der Forge antwortet nicht</string>
+    <string name="perm_control">den Forge DSP steuern</string>
+    <string name="perm_control_desc">Befehle an den Forge DSP am USB-Anschluss senden und seine Antworten und Ereignisse empfangen.</string>
+</resources>

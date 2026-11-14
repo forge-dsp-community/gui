@@ -3,7 +3,8 @@
 //   window.ForgeAndroid  (Kotlin, android/.../ui/Bridge.kt)
 //     present(): boolean                  a Forge (CP2102) is plugged in
 //     open(id, baud)                      permission + open; answer through settle(id, error)
-//     write(base64) / setBaud(baud) / close()
+//     write(base64) / writeRaw(base64) / setBaud(baud) / close()   (writeRaw: bootloader, the service keeps quiet)
+//     settings(): JSON / setSettings(JSON): error / refreshMaster()    the background service (volume, autostart)
 //     save(id, base64, name, mime)        "save as" (Storage Access Framework); settle(id, error|"cancel")
 //   window.__forgeAndroid  (this file)
 //     data(base64)                        received bytes
@@ -15,6 +16,10 @@ interface Bridge {
   present(): boolean;
   open(id: number, baud: number): void;
   write(b64: string): void;
+  writeRaw(b64: string): void;
+  settings(): string;
+  setSettings(json: string): string;
+  refreshMaster(): void;
   setBaud(baud: number): void;
   close(): void;
   save(id: number, b64: string, name: string, mime: string): void;
@@ -65,11 +70,37 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
     name: "USB (Android)",
     write: async (line) => b.write(toB64(new TextEncoder().encode(line))),
     onLine: (fn) => listeners.push(fn),
-    bytes: { write: async (d) => b.write(toB64(d)), read: (ms) => queue.read(ms), flush: () => queue.flush() },
+    bytes: { write: async (d) => b.writeRaw(toB64(d)), read: (ms) => queue.read(ms), flush: () => queue.flush() },
     async setBaud(r) { queue.flush(); b.setBaud(r); },
     async close() { onData = null; b.close(); },
   };
 }
+
+/** how the Android volume acts on the Forge (android/…/service/VolumeControl.kt) */
+export type VolumeMode = "OFF" | "MIRROR" | "MIRROR_FIXED" | "REMOTE";
+export interface AndroidSettings {
+  volumeMode: VolumeMode;
+  rangeDb: number;
+  stepDb: number;
+  autostart: boolean;
+  /** state of the service (read only) */
+  status?: string;
+  master?: number[] | null;
+  masterValue?: number | null;
+}
+export function androidSettings(): AndroidSettings | null {
+  const b = bridge();
+  if (!b) return null;
+  try { return JSON.parse(b.settings()) as AndroidSettings; } catch { return null; }
+}
+/** "" = taken, else why not */
+export function setAndroidSettings(s: Partial<AndroidSettings>): string {
+  const b = bridge();
+  if (!b) return "no Android bridge";
+  return b.setSettings(JSON.stringify(s));
+}
+/** the control blocks changed: the service looks for the volume block again */
+export function androidRefreshMaster() { bridge()?.refreshMaster(); }
 
 /** "save as" in the app; false if cancelled */
 export async function androidSave(data: Uint8Array, name: string, mime = "application/octet-stream"): Promise<boolean> {

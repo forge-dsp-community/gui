@@ -1,7 +1,14 @@
 package io.github.psych0d0g.forgedsp.ui
 
 import android.annotation.SuppressLint
+import android.Manifest
 import android.app.Activity
+import android.content.ComponentName
+import android.content.Context
+import android.content.ServiceConnection
+import android.content.pm.PackageManager
+import android.os.Build
+import android.os.IBinder
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -15,17 +22,25 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
+import io.github.psych0d0g.forgedsp.service.ForgeService
 
 /**
  * The web GUI (bundled, offline) in a WebView: https://appassets.androidplatform.net/assets/index.html
  * is a secure context (crypto.subtle, localStorage). The USB port comes through [Bridge]; file
  * inputs open the system's file picker, downloads go through "save as" (Storage Access Framework).
+ * The connection itself belongs to [ForgeService]; the activity binds to it while it is open.
  */
 class MainActivity : ComponentActivity() {
     private lateinit var web: WebView
     private lateinit var bridge: Bridge
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var pendingSave: Pair<ByteArray, (String) -> Unit>? = null
+    @Volatile var service: ForgeService? = null
+        private set
+    private val conn = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, b: IBinder) { service = (b as ForgeService.LocalBinder).service }
+        override fun onServiceDisconnected(name: ComponentName) { service = null }
+    }
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->
         fileCallback?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.resultCode, r.data))
@@ -58,6 +73,10 @@ class MainActivity : ComponentActivity() {
                 return runCatching { pickFile.launch(params.createIntent()) }.isSuccess.also { if (!it) { fileCallback = null; callback.onReceiveValue(null) } }
             }
         }
+        bindService(Intent(this, ForgeService::class.java), conn, Context.BIND_AUTO_CREATE)
+        ForgeService.start(this)
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED)
+            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)   // the service's notification
         bridge = Bridge(this, web)
         web.addJavascriptInterface(bridge, "ForgeAndroid")
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -94,6 +113,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         bridge.shutdown()
+        runCatching { unbindService(conn) }
         web.destroy()
         super.onDestroy()
     }

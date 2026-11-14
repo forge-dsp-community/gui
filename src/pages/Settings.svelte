@@ -1,6 +1,8 @@
 <script lang="ts">
   import { app, meter, outName, resetMeter, setMeter, setVuFloor, VU_FLOORS, type MeterSource } from "../lib/app.svelte";
   import { i18n, LANGS, setLang, t, tk, type Lang, tx } from "../lib/i18n/index.svelte";
+  import AndroidPanel from "../components/AndroidPanel.svelte";
+  import { isAndroid } from "../lib/android";
 
   // Settings of this GUI (stored in the browser, not in the Forge).
   const outs = $derived(Math.max(8, app.device.gain.out.length));
@@ -13,6 +15,8 @@
   <h2>{t("common.settings")}</h2>
   <p class="muted">{t("settings.settingsInterfaceTheyApply")}</p>
 </header>
+
+{#if isAndroid()}<AndroidPanel />{/if}
 
 <section class="panel box">
   <h3>{t("common.language")}</h3>
