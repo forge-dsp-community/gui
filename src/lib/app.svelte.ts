@@ -7,6 +7,7 @@ import { identifyFlash, type FlashId } from "./boot/identify";
 import { deviceError, explain } from "./errors";
 import { autoPort, openNativeSerial, portsNative, type PortInfo } from "./transport/native";
 import { isNative } from "./native";
+import { androidPresent, isAndroid, openAndroidSerial } from "./android";
 import { openSim, simFlavours } from "./transport/sim";
 import { openWebSocket } from "./transport/websocket";
 import { t } from "./i18n/index.svelte";
@@ -31,7 +32,7 @@ export interface BootState {
   identity: string;
 }
 
-export type PageId = "overview" | "device" | "mixer" | "filters" | "delay" | "modc" | "presets" | "biquads"
+export type PageId = "overview" | "car" | "device" | "mixer" | "filters" | "delay" | "modc" | "presets" | "biquads"
   | "diagnose" | "firmware" | "console" | "sdcard" | "settings";
 
 export const app = $state({
@@ -85,6 +86,7 @@ function attach(t: Transport) {
 export const portChoice = $state<{ ports: PortInfo[] | null; resolve: ((p: PortInfo | null) => void) | null }>({ ports: null, resolve: null });
 export async function refreshPorts() { if (portChoice.resolve) portChoice.ports = await portsNative(); }
 async function openUsb() {
+  if (isAndroid()) return openAndroidSerial();   // the Android app (#29)
   if (!isNative()) return openWebSerial();
   const ports = await portsNative();
   let p = autoPort(ports);
@@ -96,7 +98,7 @@ async function openUsb() {
   return openNativeSerial(p.name);
 }
 /** USB is possible: Web Serial in the browser, always in the desktop app */
-export const usbAvailable = () => isNative() || (typeof navigator !== "undefined" && "serial" in navigator);
+export const usbAvailable = () => isNative() || isAndroid() || (typeof navigator !== "undefined" && "serial" in navigator);
 
 /** flavours of the simulator next to the page (tools/sim of the firmware), see App.svelte */
 export const sim = $state<{ flavours: string[]; flavour: string }>({ flavours: [], flavour: "" });
@@ -212,6 +214,7 @@ export async function loadPreset(n: number): Promise<string> {
     const done = new Promise<void>((r) => { presetWait = r; setTimeout(r, 30000); });   // older firmware: no event
     const err = await writeOnce("preset.loaded", n);
     if (err) return err;
+    app.device.preset.loaded = n;   // the demo reads nothing back; on a device the read below confirms it
     if (!app.demo) await done;
   } finally {
     presetWait = null;
@@ -511,6 +514,7 @@ export async function leaveBootloader() {
 /** the USB port of the Forge, if it is there; without asking (allowed before / the only CP2102) */
 async function reopenUsb(): Promise<Transport | null> {
   try {
+    if (isAndroid()) return androidPresent() ? await openAndroidSerial() : null;
     if (isNative()) {
       const p = autoPort(await portsNative());
       return p ? await openNativeSerial(p.name) : null;
@@ -522,6 +526,7 @@ async function reopenUsb(): Promise<Transport | null> {
   }
 }
 async function usbPresent(): Promise<boolean> {
+  if (isAndroid()) return androidPresent();
   return isNative() ? !!autoPort(await portsNative().catch(() => [])) : !!(await grantedPort());
 }
 

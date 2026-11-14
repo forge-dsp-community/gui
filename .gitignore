@@ -13,3 +13,9 @@ tests/sim/
 # end-to-end test results
 test-results/
 playwright-report/
+
+# Android app (#29)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties

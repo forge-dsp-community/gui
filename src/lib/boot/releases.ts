@@ -1,5 +1,6 @@
 import { t } from "../i18n/index.svelte";
 import { isNative, nativeGet } from "../native";
+import { isAndroid } from "../android";
 // Firmware releases next to the page (scripts/fetch-firmware.mjs in the Pages build): GitHub serves
 // release assets without CORS headers, so the files come from the page's own origin, listed in
 // ./firmware/index.json with their SHA-256.
@@ -10,7 +11,8 @@ export interface Release {
   assets: ReleaseAsset[];
 }
 
-export const RELEASE_BASE = "./firmware/";
+// the Android app (#29) carries the page without the releases: from the Pages site (CORS allowed there)
+export const RELEASE_BASE = isAndroid() ? "https://psych0d0g.github.io/forge-dsp-gui-ng/firmware/" : "./firmware/";
 export const FIRMWARE_REPO = "psych0d0g/forge-dsp-firmware";
 
 interface ApiRelease { tag_name: string; name: string | null; published_at: string | null; draft: boolean; prerelease: boolean;

@@ -6,6 +6,7 @@ Neue Bedienoberfläche für **Forge DSP** und **ETON CORE D8** als Nachfolger de
 |---|---|---|
 | **Browser, USB** | https://psych0d0g.github.io/forge-dsp-gui-ng/ → Web Serial → USB-COM des Forge (CP2102, 38400 8N1) | Chrome, Edge oder ein Firefox mit Web Serial; nichts zu installieren |
 | **Desktop-App, USB** | Dieselbe Oberfläche als Programm: [Releases](https://github.com/psych0d0g/forge-dsp-gui-ng/releases) (Windows msi oder portable exe, Linux deb, rpm, AppImage, Flatpak, macOS dmg). Dateien mit „Speichern unter“, serielle Anschlüsse direkt | nichts weiter; macOS beim ersten Start per Rechtsklick › Öffnen (unsigniert) |
+| **Android-App, USB** (#29, in Arbeit) | Für Android-Headunits (7", 1024×600): dieselbe Oberfläche, Startseite *Fahrzeug* mit großen Tasten (Preset, Lautstärke, Mute, Quelle, GALA, Status), Touch-Layout. Der Forge per USB am Headunit, die App startet beim Einstecken. APK aus den [Releases](https://github.com/psych0d0g/forge-dsp-gui-ng/releases) bzw. als Artefakt des Workflows `android` | Android 7 oder neuer mit USB-Host und aktueller System-WebView (Chrome 94+); Installation aus unbekannten Quellen erlauben |
 | **ESP32** | Der ESP32 steckt am RS485-Master/Slave-Port, öffnet ein WLAN und liefert die App selbst aus. Die App spricht per WebSocket, der ESP reicht die Zeilen zur UART durch | ESP32 mit 3,3-V-Full-Duplex-Transceiver, siehe [docs/hardware-esp32.md](docs/hardware-esp32.md) |
 
 Die Firmware des Forge (Original BASCOM 1.11.6000 oder der C-Port [forge-dsp-firmware](https://github.com/psych0d0g/forge-dsp-firmware)) bleibt unverändert, die App nutzt das Textprotokoll.
@@ -75,6 +76,14 @@ Desktop-App (Tauri, `src-tauri/`): die Web-App im Webview des Systems, dazu in R
 Rust; unter Linux `libwebkit2gtk-4.1-dev`, `libudev-dev`). Flatpak: `flatpak/`. Die Builds für alle drei Systeme macht
 `.github/workflows/desktop.yml` (Tag `v*`:
 an das Release, „Run workflow“: nur Artefakte).
+
+Android-App (`android/`, Kotlin): die gebaute Web-App (`dist/`) als Assets in einer WebView
+(`https://appassets.androidplatform.net/assets/index.html`, offline). Die USB-Verbindung zum CP2102 läuft über
+usb-serial-for-android, in die Seite gereicht als `window.ForgeAndroid` (`src/lib/android.ts`: Zeilen, rohe Bytes für den
+Bootloader, Baudrate, „Speichern unter“). Dateiauswahl über die Dateien-App des Systems, Firmware-Releases von der
+Pages-Seite. Bauen: `npm run build`, dann `gradle -p android assembleRelease` (JDK 17, Android-SDK 35, Gradle 8.10.2).
+Die Seite *Fahrzeug* und das Touch-Layout gehen auch im Browser: `?skin=touch&page=car`. Die APK baut
+`.github/workflows/android.yml` (jeder Push: Artefakt, Tag `v*`: an das Release), signiert mit dem Debug-Schlüssel.
 
 Der ESP32 öffnet standardmäßig das WLAN `forge-dsp` (Passwort `forge-dsp-setup`, bitte in menuconfig ändern), die App liegt unter http://192.168.4.1/. Optional tritt er zusätzlich einem bestehenden WLAN bei.
 

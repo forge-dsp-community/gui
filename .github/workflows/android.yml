@@ -1,0 +1,52 @@
+# Android app (android/, #29): the web GUI in a WebView with a USB bridge, for head units.
+# Push: APK as artifact; tag v*: APK to the GitHub release. The runner image brings the Android SDK.
+name: android
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.10.2
+      - name: APK
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.0.0-${GITHUB_SHA::7}"
+          gradle -p android assembleRelease -PversionName="$v" -PversionCode="${GITHUB_RUN_NUMBER}"
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/*.apk "out/forge-dsp-$v-android.apk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: out/
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          notes=()
+          [ -f "docs/releases/$v.md" ] && notes=(--notes-file "docs/releases/$v.md")
+          # the desktop workflow may create it at the same time
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Forge DSP GUI $v" "${notes[@]}" || gh release view "$GITHUB_REF_NAME" >/dev/null
+          gh release upload "$GITHUB_REF_NAME" --clobber out/*.apk

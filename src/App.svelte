@@ -9,6 +9,8 @@
   import VuMeter from "./components/VuMeter.svelte";
   import MasterFader from "./components/MasterFader.svelte";
   import Overview from "./pages/Overview.svelte";
+  import Car from "./pages/Car.svelte";
+  import { androidPresent, isAndroid, onAndroidAttached } from "./lib/android";
   import Console from "./pages/Console.svelte";
   import Delay from "./pages/Delay.svelte";
   import Mixer from "./pages/Mixer.svelte";
@@ -31,7 +33,7 @@
 
   // navigation in the order of the signal path, then control, then tools
   const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
-    { group: tk("common.device"), items: [{ id: "overview", label: tk("common.overview") }] },
+    { group: tk("common.device"), items: [{ id: "overview", label: tk("common.overview") }, { id: "car", label: tk("car.title") }] },
     { group: tk("app.signalPath"), items: [
       { id: "mixer", label: tk("common.mixer") }, { id: "filters", label: tk("common.filtersEQ") }, { id: "delay", label: tk("common.delay") }] },
     { group: tk("app.control"), items: [{ id: "modc", label: tk("common.controlBlocks") }, { id: "presets", label: tk("common.presets") },
@@ -47,6 +49,7 @@
     // ?demo (and &page=outputs): the interface without a device, for a first look and screenshots
     const q = new URLSearchParams(location.search);
     if (q.get("theme") === "dark" || q.get("theme") === "light") theme = q.get("theme") as "dark" | "light";
+    if (q.get("skin") === "touch") document.documentElement.dataset.skin = "touch";   // the skin of the Android app (#29)
     if (q.has("demo")) {
       await connect("demo");
       if (q.get("page")) app.page = (["inputs", "outputs"].includes(q.get("page")!) ? "mixer" : q.get("page")) as PageId;
@@ -57,6 +60,19 @@
       await findSim();
       if (q.get("sim")) sim.flavour = q.get("sim")!;
       if (sim.flavour) { await connect("sim"); return; }
+    }
+    if (isAndroid()) {   // the Android app (#29): touch skin, the car page first, the Forge when plugged in
+      document.documentElement.dataset.skin = "touch";
+      app.page = (q.get("page") as PageId) || "car";
+      onAndroidAttached(() => { if (app.status === "offline") void connect("usb"); });
+      // the back key of the head unit: menu closed, then the car page, then the app leaves
+      (window as unknown as { __forgeAndroidBack: () => boolean }).__forgeAndroidBack = () => {
+        if (navOpen) { navOpen = false; return true; }
+        if (app.page !== "car") { app.page = "car"; return true; }
+        return false;
+      };
+      if (androidPresent()) await connect("usb");
+      return;
     }
     onBridge = await servedByBridge();
     if (onBridge) connect("esp");
@@ -70,7 +86,8 @@
     try { localStorage.setItem("theme", theme); } catch { /* private mode */ }
   }
   // keyboard shortcuts (lib/keys.svelte.ts, overview: components/Shortcuts.svelte); none while typing in a field
-  const PAGES = $derived(NAV.flatMap((g) => g.items.map((it) => it.id)));
+  // Ctrl+number: "car" (#29) is left out, the numbers stay those of before
+  const PAGES = $derived(NAV.flatMap((g) => g.items.map((it) => it.id)).filter((id) => id !== "car"));
   function keys(e: KeyboardEvent) {
     if (shortcuts.open && e.key === "Escape") { shortcuts.open = false; return; }
     if (inField(e)) return;
@@ -143,7 +160,7 @@
         {#each app.chain as c}<option value={c.n}>{t("app.chainEntry", { n: c.n, model: c.model || "?" })}</option>{/each}
       </select>
     {/if}
-    {#if online && !app.bootloader}<div class="live"><VuMeter /><MasterFader /></div>{/if}
+    {#if online && !app.bootloader && app.page !== "car"}<div class="live"><VuMeter /><MasterFader /></div>{/if}
     <div class="actions">
       {#if online}
         {#if !app.bootloader}
@@ -210,6 +227,7 @@
         </section>
       </div>
     {:else if app.page === "overview"}<Overview />
+    {:else if app.page === "car"}<Car />
     {:else if app.page === "delay"}<Delay />
     {:else if app.page === "mixer"}<Mixer />
     {:else if app.page === "filters"}<Filters />
@@ -297,6 +315,14 @@
     main { padding: .9rem; }
     .status span:not(:first-child):not(.right) { display: none; }
   }
+  /* touch skin of the Android app (#29): the menu as on narrow screens, the width for the page */
+  :global(:root[data-skin="touch"]) .shell { grid-template: "top" auto "main" 1fr "status" auto / minmax(0, 1fr); }
+  :global(:root[data-skin="touch"]) .side { position: fixed; inset: 0 auto 0 0; width: 16rem; transform: translateX(-100%); transition: transform .18s; }
+  :global(:root[data-skin="touch"]) .nav-open .side { transform: none; }
+  :global(:root[data-skin="touch"]) .nav-open .scrim { display: block; position: fixed; inset: 0; z-index: 2; background: rgba(0, 0, 0, .45); border: 0; border-radius: 0; padding: 0; }
+  :global(:root[data-skin="touch"]) .menu { display: inline-flex; padding: .5rem; }
+  :global(:root[data-skin="touch"]) main { padding: .7rem; }
+  :global(:root[data-skin="touch"]) .top { padding-top: .35rem; padding-bottom: .35rem; }
   /* phone: level and master in a row of their own below the device */
   @media (max-width: 40rem) {
     .top { flex-wrap: wrap; row-gap: .4rem; padding: .5rem .75rem; }

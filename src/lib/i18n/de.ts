@@ -1110,6 +1110,22 @@ export const DE = {
   "gala.testStart": "Senden",
   "gala.testStop": "Stoppen",
   "gala.testHint": "Sendet die Geschwindigkeit jede Sekunde wie ein Fahrzeug. Nach dem Stoppen fällt der Forge nach der Zeitüberschreitung auf 0 km/h zurück. Leise testen.",
+  // car page of the Android app (#29)
+  "car.title": "Fahrzeug",
+  "car.presets": "Preset",
+  "car.volume": "Lautstärke",
+  "car.quieter": "Leiser",
+  "car.louder": "Lauter",
+  "car.noMaster": "Keine Master-Lautstärke: dafür einen Steuerblock „Lautstärke“ einrichten.",
+  "car.outputs": "Ausgänge",
+  "car.muteAll": "Alle stumm",
+  "car.unmuteAll": "Ton an",
+  "car.outputN": "Ausgang {n}",
+  "car.source": "Quelle",
+  "car.galaBoost": "GALA: Lautstärke +{vol} dB, Bass +{bass} dB",
+  "car.supply": "Bordspannung",
+  "car.errors": "Fehler",
+  "car.allSettings": "Alle Einstellungen",
 } as const;
 
 export type Key = keyof typeof DE;

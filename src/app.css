@@ -81,3 +81,10 @@ input[type="text"], input:not([type]) {
 ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 99px; border: 2px solid transparent; background-clip: content-box; }
 * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+
+/* touch skin of the Android app (#29, data-skin="touch" on <html>): head units with 7" 1024x600
+   screens; larger targets and text */
+:root[data-skin="touch"] { font-size: 17px; }
+:root[data-skin="touch"] button, :root[data-skin="touch"] select { min-height: 44px; }
+:root[data-skin="touch"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { min-height: 40px; }
+:root[data-skin="touch"] input[type="checkbox"], :root[data-skin="touch"] input[type="radio"] { width: 1.4rem; height: 1.4rem; }
