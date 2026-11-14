@@ -2,6 +2,7 @@ import { crc16 } from "./sdfiles";
 import type { Transport } from "../transport/types";
 import { SimTarget } from "../boot/sim";
 import { emptyState, type DeviceState } from "./model";
+import { galaBoost, galaParams } from "./gala";
 
 /** A Forge 96ELN with a plausible tuning, to look at the interface without a device. */
 /** the demo device; n = 2: a second one behind the slave port (RS485 chain, #15), an ETON CORE D8 */
@@ -66,7 +67,7 @@ export function demoState(n = 1): DeviceState {
   const blk = (enable: number, type: number, flags: number[], events: number[], sets: number[]) => ({ enable, type, flags, events, sets });
   s.modc = { 1: blk(1, 86, [0, 0, 0, 0], [0, 0, 0, 0], [255, 0, 127, 0]), 2: blk(1, 16, [255, 0, 0, 0], [58, 59, 0, 0], [255, 0, 0, 0]),
     3: blk(1, 108, [15, 215, 40, 15], [98, 0, 0, 0], [100, 0, 16, 39]), 4: blk(0, 106, [8, 0, 0, 0], [62, 0, 0, 0], [4, 0, 0, 0]),
-    5: blk(1, 96, [1, 0, 0, 0], [0, 6, 0, 0], [3, 2, 0, 0]), 31: blk(1, 68, [1, 0, 0, 0], [0, 0, 0, 0], [0x83, 0xff, 4, 0]), 32: blk(1, 193, [0, 0, 0, 0], [4, 0, 6, 128], [4, 5, 4, 4]) };
+    5: blk(1, 96, [1, 0, 0, 0], [0, 6, 0, 0], [3, 2, 0, 0]), 6: blk(1, 110, [0x0f, 0, 30, 12], [10, 20, 0, 0], [0, 0, 0, 0]), 31: blk(1, 68, [1, 0, 0, 0], [0, 0, 0, 0], [0x83, 0xff, 4, 0]), 32: blk(1, 193, [0, 0, 0, 0], [4, 0, 6, 128], [4, 5, 4, 4]) };
   s.preset = { loaded: 1, select: 255 };
   s.startup = [247, 486, 486, 492, 1198, 2134, 3030, 3926, 4934, 4936, 5209, 7180, 7181, 7183, 7227, 7406, 7543, 8470, 8470, 9576, 0];
   s.uptime = { ms: 3723000, at: Date.now() };
@@ -175,6 +176,8 @@ export class DemoTransport implements Transport {
   dbgOut = 4;
   events: Record<number, number> = { 58: 231, 59: 231 };
   dbgMode = 4;
+  /** GALA (#71): speed from set system.kmh (3 s), else a drive in town and on the road */
+  kmh = { v: 0, at: 0 };
   /** a simulated bootloader target, so the firmware page can be tried without a device */
   bytes = new SimTarget();
   private fn: (l: string) => void = () => {};
@@ -193,6 +196,13 @@ export class DemoTransport implements Transport {
     const ev = /^event\.(\d+)\.value$/.exec(m[3]);
     if (ev && m[1] === "set") this.events[Number(ev[1])] = Number(/=(\d+)/.exec(line)?.[1] ?? 0);
     if (ev && m[1] === "get") out = ` <.1 ${m[3]}=${this.events[Number(ev[1])] ?? 255}`;
+    if (m[1] === "set" && m[3] === "system.kmh") this.kmh = { v: Number(/=(\d+)/.exec(line)?.[1] ?? 0), at: Date.now() };
+    if (m[1] === "get" && m[3] === "system.kmh") {
+      const t = Date.now() / 1000;
+      const v = Date.now() - this.kmh.at < 3000 ? this.kmh.v : Math.round(Math.max(0, 75 + 55 * Math.sin(t / 9)));
+      const b = galaBoost(galaParams({ enable: 1, type: 110, flags: [0x0f, 0, 30, 12], events: [10, 20, 0, 0], sets: [0, 0, 0, 0] }), v);
+      out = ` <.1 system.kmh=[${v},${Math.round(b.vol * 10)},${Math.round(b.bass * 10)},0]`;
+    }
     if (m[1] === "set" && m[3] === "system.debug.out") this.dbgOut = Number(/=(\d+)/.exec(line)?.[1] ?? 0);
     if (m[1] === "set" && m[3] === "system.debug.mode") this.dbgMode = Number(/=(\d+)/.exec(line)?.[1] ?? 0);
     if (m[1] === "get" && m[3] === "system.debug.out") out = ` <.1 system.debug.out=${this.dbgOut}`;

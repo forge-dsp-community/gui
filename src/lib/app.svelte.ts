@@ -808,6 +808,10 @@ function isPollLine(text: string) {
   return r !== null && pollRegs.includes(r);
 }
 
+/** GALA (#71): the device page reads system.kmh once a second while it is shown */
+let speedWatch = false;
+export function watchSpeed(on: boolean) { speedWatch = on; }
+
 async function poll() {
   const c = client;
   if (!c || polling || app.status !== "online" || app.writing > 0 || app.exclusive || app.bootloader) return;
@@ -817,6 +821,7 @@ async function poll() {
   if (app.device.vu !== null) regs.push("system.vu");
   // output levels: the meter in the header shows their sum
   if (app.device.vuOut !== null) regs.push("system.vu.out");
+  if (speedWatch && tick % 5 === 0) regs.push("system.kmh");
   if (tick % STATUS_EVERY === 0) {
     for (const r of STATUS_REGS) if (!r.port || isPort(app.device)) regs.push(r.reg);
     regs.push(...masterRegs());  // a rotary encoder or the IR remote may have moved it

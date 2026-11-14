@@ -4,6 +4,8 @@
   import { availableTypes, copyModc, DEVICE_TYPES, emptyModc, eventOptions, modcName, modcText, modcType, onDevicePage, type Modc } from "../lib/device";
   import Icon from "../components/Icon.svelte";
   import ModcFields from "../components/ModcFields.svelte";
+  import GalaPanel from "../components/GalaPanel.svelte";
+  import { GALA_TYPE } from "../lib/device";
 
   const d = $derived(app.device);
   const total = $derived(d.identity.modcBlocks || 32);
@@ -101,6 +103,7 @@
 
       {#if mt?.fields && !raw}
         <ModcFields {m} fields={mt.fields} {events} {change} />
+        {#if m.type === GALA_TYPE}{#key sel}<GalaPanel {m} />{/key}{/if}
       {:else}
         {#each [["events", t("common.event")], ["sets", "Set"], ["flags", "Flag"]] as const as [of, name]}
           <div class="group">

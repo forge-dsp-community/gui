@@ -107,6 +107,9 @@ export interface DeviceState {
   uptime: { ms: number; at: number } | null;
   /** ms remote out stays on after ACC off, outputs muted (system.shutdown.hold, forge-dsp-firmware#68); null = none */
   shutdownHold: number | null;
+  /** GALA (forge-dsp-firmware#71): system.kmh = speed, volume and bass boost (0.1 dB), source
+   * (255 = no GALA block on); null = not read (only while the device page watches it) */
+  speed: { kmh: number; vol: number; bass: number; source: number } | null;
 }
 
 export function emptyState(): DeviceState {
@@ -140,6 +143,7 @@ export function emptyState(): DeviceState {
     startup: null,
     uptime: null,
     shutdownHold: null,
+    speed: null,
   };
 }
 
@@ -252,6 +256,12 @@ export function applyAnswer(s: DeviceState, a: Answer): boolean {
         case "startup":
           if (p.length === 3 && p[2] === "time") { s.startup = nums(v); return true; }
           return false;
+        case "kmh": {
+          const k = nums(v);
+          if (p.length !== 2 || k.length !== 4) return false;
+          s.speed = { kmh: k[0], vol: k[1], bass: k[2], source: k[3] };
+          return true;
+        }
         case "uptime": {
           const u = nums(v);
           if (p.length !== 2 || u.length !== 2) return false;

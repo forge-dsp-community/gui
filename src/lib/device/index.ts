@@ -12,3 +12,4 @@ export * from "./bqcopy";
 export * from "./master";
 export * from "./compare";
 export * from "./startup";
+export * from "./gala";

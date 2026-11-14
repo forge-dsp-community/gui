@@ -8,7 +8,7 @@ import { t, tk, tx } from "../i18n/index.svelte";
 export type Field =
   | { kind: "event"; i: number; label: string }
   /** one byte, optionally shown scaled (value * mul, e.g. steps of 250 ms as seconds) */
-  | { kind: "byte"; of: "sets" | "flags"; i: number; label: string; mul?: number; unit?: string; hint?: string }
+  | { kind: "byte"; of: "sets" | "flags" | "events"; i: number; label: string; mul?: number; unit?: string; hint?: string }
   /** 16 bits over two bytes, low byte at i; div: shown as value / div */
   | { kind: "word"; of: "sets"; i: number; label: string; signed?: boolean; div?: number; unit?: string; min?: number; max?: number; hint?: string }
   /** a value from a list; shift/width: only these bits of the byte (the others stay), first: value of options[0] */
@@ -63,6 +63,21 @@ export const MODC_TYPES: ModcType[] = [
       { kind: "word", of: "sets", i: 3, label: tk("modc.trebleFrequency"), unit: "Hz", hint: tk("modc.n010000Hz") },
       { kind: "byte", of: "flags", i: 4, label: tk("modc.trebleBoostPerDB"), mul: 0.01, unit: "dB", hint: "0 = 0,15" },
       { kind: "byte", of: "flags", i: 2, label: tk("modc.reference2230DB"), hint: "0 = 223" },
+    ] },
+  // firmware: modc_gala / gala.c (#71); the events are parameters there, not event inputs
+  { type: 110, name: tk("modc.gala"), help: tk("modc.galaHelp"),
+    fields: [
+      { kind: "bits", of: "flags", i: 1, label: tk("modc.galaOutputs"), bits: OUTS },
+      { kind: "choice", of: "flags", i: 2, label: tk("modc.galaSource"), options: [tk("modc.galaSrcCommand"),
+        tk("modc.galaSrcImp1"), tk("modc.galaSrcImp2"), tk("modc.galaSrcImp3"), tk("modc.galaSrcSw1"), tk("modc.galaSrcSw2"), tk("modc.galaSrcSw3")] },
+      { kind: "word", of: "sets", i: 1, label: tk("modc.galaPulses"), hint: tk("modc.galaPulsesHint") },
+      { kind: "byte", of: "sets", i: 3, label: tk("modc.galaTimeout"), mul: 0.1, unit: "s", hint: tk("modc.galaTimeoutHint") },
+      { kind: "byte", of: "flags", i: 3, label: tk("modc.galaStart"), unit: "km/h" },
+      { kind: "byte", of: "events", i: 1, label: tk("modc.galaVolSlope"), mul: 0.1, unit: "dB/10 km/h", hint: "0 = 1 dB" },
+      { kind: "byte", of: "flags", i: 4, label: tk("modc.galaVolMax"), mul: 0.5, unit: "dB", hint: "0 = 6 dB" },
+      { kind: "byte", of: "events", i: 2, label: tk("modc.galaBassSlope"), mul: 0.1, unit: "dB/10 km/h", hint: tk("modc.galaBassSlopeHint") },
+      { kind: "byte", of: "events", i: 3, label: tk("modc.galaBassMax"), mul: 0.5, unit: "dB", hint: "0 = 6 dB" },
+      { kind: "byte", of: "events", i: 4, label: tk("modc.galaRamp"), mul: 0.1, unit: "dB/s", hint: "0 = 1 dB/s" },
     ] },
   { type: 106, name: tk("modc.mono"), help: tk("modc.switchesOutputPairsMono"),
     fields: [
