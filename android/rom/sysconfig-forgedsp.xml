@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- For the own ROM (#31): the app reaches AudioDeviceVolumeManager (system API) by reflection; the
+     hidden API check lets it through only with this entry. To /system_ext/etc/sysconfig/. -->
+<config>
+    <hidden-api-whitelisted-app package="io.github.psych0d0g.forgedsp" />
+</config>

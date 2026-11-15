@@ -20,7 +20,9 @@
     { v: "MIRROR", t: tk("android.volMirror"), d: tk("android.volMirrorHint") },
     { v: "MIRROR_FIXED", t: tk("android.volFixed"), d: tk("android.volFixedHint") },
     { v: "REMOTE", t: tk("android.volRemote"), d: tk("android.volRemoteHint") },
+    { v: "ABSOLUTE", t: tk("android.volAbsolute"), d: tk("android.volAbsoluteHint") },
   ];
+  const usable = (m: VolumeMode) => m !== "ABSOLUTE" || !!s?.absoluteAvailable || s?.volumeMode === "ABSOLUTE";
   function put(p: Partial<AndroidSettings>) {
     err = setAndroidSettings(p);
     s = androidSettings();
@@ -40,18 +42,23 @@
 
     <div class="choice" role="radiogroup" aria-label={t("android.volume")}>
       {#each MODES as m}
-        <label class="opt" class:on={s.volumeMode === m.v}>
-          <input type="radio" name="vol" value={m.v} checked={s.volumeMode === m.v} onchange={() => put({ volumeMode: m.v })} />
-          <span><strong>{tx(m.t)}</strong><small class="muted">{tx(m.d)}</small></span>
+        <label class="opt" class:on={s.volumeMode === m.v} class:dis={!usable(m.v)}>
+          <input type="radio" name="vol" value={m.v} checked={s.volumeMode === m.v} disabled={!usable(m.v)} onchange={() => put({ volumeMode: m.v })} />
+          <span><strong>{tx(m.t)}</strong><small class="muted">{tx(m.d)}</small>
+            {#if m.v === "ABSOLUTE" && !s.absoluteAvailable}<small class="warn">{t("android.volAbsoluteSystem")}</small>{/if}</span>
         </label>
       {/each}
     </div>
+    {#if s.volumeMode === "ABSOLUTE"}
+      <p class="small">{s.absoluteActive ? t("android.absOn") : t("android.absOff")}
+        {#if s.absoluteError}· <span class="warn">{s.absoluteError}</span>{/if}</p>
+    {/if}
     {#if s.volumeMode !== "OFF"}
       <div class="fields">
         <label class="fld"><span>{t("android.range")}</span>
           <span class="unit"><input class="num short" value={s.rangeDb} inputmode="numeric" onchange={(e) => put({ rangeDb: num(e) })} /><i>dB</i>
             <em>{t("android.rangeHint")}</em></span></label>
-        {#if s.volumeMode !== "MIRROR"}
+        {#if s.volumeMode !== "MIRROR" && s.volumeMode !== "ABSOLUTE"}
           <label class="fld"><span>{t("android.step")}</span>
             <span class="unit"><input class="num short" value={String(s.stepDb).replace(".", ",")} inputmode="decimal" onchange={(e) => put({ stepDb: num(e) })} /><i>dB</i>
               <em>{t("android.stepHint")}</em></span></label>
@@ -96,6 +103,7 @@
   .choice { display: grid; gap: .5rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); }
   .opt { display: flex; gap: .6rem; align-items: flex-start; padding: .6rem .75rem; border: 1px solid var(--line); border-radius: 10px; background: var(--raised); cursor: pointer; }
   .opt.on { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); }
+  .opt.dis { opacity: .55; cursor: not-allowed; }
   .opt input { margin-top: .2rem; accent-color: var(--accent); }
   .opt span { display: grid; gap: .1rem; }
   small { font-size: .78rem; }

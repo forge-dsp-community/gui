@@ -4,7 +4,9 @@ import android.util.Base64
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import androidx.lifecycle.lifecycleScope
+import io.github.psych0d0g.forgedsp.service.AbsoluteVolume
 import io.github.psych0d0g.forgedsp.service.ForgeService
+import io.github.psych0d0g.forgedsp.service.VolumeMode
 import io.github.psych0d0g.forgedsp.service.Settings
 import io.github.psych0d0g.forgedsp.update.Updater
 import io.github.psych0d0g.forgedsp.usb.UsbLink
@@ -80,6 +82,10 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
         o.put("status", s?.status?.name ?: "STOPPED")
         o.put("master", s?.master?.let { org.json.JSONArray(it) } ?: JSONObject.NULL)
         o.put("masterValue", s?.masterValue ?: JSONObject.NULL)
+        // absolute volume (#31): only as a privileged system app
+        o.put("absoluteAvailable", AbsoluteVolume.available(act))
+        o.put("absoluteActive", s?.absolute?.active == true)
+        o.put("absoluteError", s?.absolute?.error ?: "")
         return o.toString()
     }
 
@@ -87,6 +93,8 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
     fun setSettings(json: String): String {
         val cur = svc?.settings ?: Settings.load(act)
         val s = runCatching { Settings.fromJson(json, cur) }.getOrElse { return it.message ?: "bad settings" }
+        if (s.volumeMode == VolumeMode.ABSOLUTE && cur.volumeMode != VolumeMode.ABSOLUTE && !AbsoluteVolume.available(act))
+            return "absolute volume needs the app as a privileged system app"
         svc?.updateSettings(s) ?: Settings.save(act, s)
         return ""
     }

@@ -100,7 +100,7 @@ class ForgeService : Service() {
             if (!w.wild) w.done.complete(Unit)
         }
         if (l.isEvent) CommandReceiver.event(this, l.raw)
-        if (master?.any { l.register == "event.$it.value" } == true) l.value?.trim()?.toIntOrNull()?.let { masterValue = it; notifyState() }
+        if (master?.any { l.register == "event.$it.value" } == true) l.value?.trim()?.toIntOrNull()?.let { masterValue = it; notifyState(); volume?.onMaster(it) }
     }
 
     /** writes one line or raw bytes; serialised, the port takes one write at a time */
@@ -266,9 +266,14 @@ class ForgeService : Service() {
 
     private fun setStatus(s: Status) {
         status = s
+        if (s != Status.ONLINE) volume?.onOffline()
         statusListeners.forEach { it(s) }
         notifyState()
     }
+
+    /** absolute volume and the like for the GUI */
+    val absolute get() = volume?.absolute
+    fun stateChanged() = notifyState()
 
     private fun notifyState() {
         if (!inForeground) return

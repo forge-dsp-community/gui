@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- For the own ROM (#31): the Forge DSP app as a privileged system app, for the volume mode
+     "absolute" on the USB audio device. To /system_ext/etc/permissions/ (or /system/etc/permissions/,
+     beside the APK in priv-app/). Every privileged permission of the manifest must be listed, an
+     enforcing system does not boot otherwise. -->
+<permissions>
+    <privapp-permissions package="io.github.psych0d0g.forgedsp">
+        <permission name="android.permission.MODIFY_AUDIO_ROUTING" />
+        <permission name="android.permission.MODIFY_AUDIO_SETTINGS_PRIVILEGED" />
+        <permission name="android.permission.BLUETOOTH_PRIVILEGED" />
+    </privapp-permissions>
+</permissions>

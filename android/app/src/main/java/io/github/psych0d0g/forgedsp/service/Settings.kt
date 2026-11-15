@@ -4,7 +4,7 @@ import android.content.Context
 import org.json.JSONObject
 
 /** How the Android volume acts on the Forge (#29); the own ROM will do it natively later. */
-enum class VolumeMode { OFF, MIRROR, MIRROR_FIXED, REMOTE }
+enum class VolumeMode { OFF, MIRROR, MIRROR_FIXED, REMOTE, ABSOLUTE }
 
 /** Settings of the service, shared with the GUI as JSON (Bridge.settings / setSettings). */
 data class Settings(

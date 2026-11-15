@@ -81,7 +81,7 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
 }
 
 /** how the Android volume acts on the Forge (android/…/service/VolumeControl.kt) */
-export type VolumeMode = "OFF" | "MIRROR" | "MIRROR_FIXED" | "REMOTE";
+export type VolumeMode = "OFF" | "MIRROR" | "MIRROR_FIXED" | "REMOTE" | "ABSOLUTE";
 export interface AndroidSettings {
   volumeMode: VolumeMode;
   rangeDb: number;
@@ -91,6 +91,10 @@ export interface AndroidSettings {
   status?: string;
   master?: number[] | null;
   masterValue?: number | null;
+  /** absolute volume on the USB device (#31): possible (system app), on, last error */
+  absoluteAvailable?: boolean;
+  absoluteActive?: boolean;
+  absoluteError?: string;
 }
 export function androidSettings(): AndroidSettings | null {
   const b = bridge();

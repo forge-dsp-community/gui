@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.database.ContentObserver
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.media.VolumeProvider
 import android.media.session.MediaSession
@@ -22,6 +24,8 @@ import kotlin.math.roundToInt
  *    still seen); every change is a step of stepDb on the master, then Android goes back.
  *  - REMOTE: a media session with remote playback and its own volume provider (as a cast device):
  *    the volume keys set the Forge while no other media session takes them.
+ *  - ABSOLUTE (#31, system installation only): absolute volume on the USB audio device, Android
+ *    plays at 0 dB and its index sets the master ([AbsoluteVolume]); only while the Forge answers.
  * The own ROM will do this natively; this is for head units with a stock system.
  */
 class VolumeControl(private val svc: ForgeService) {
@@ -32,6 +36,14 @@ class VolumeControl(private val svc: ForgeService) {
     private var last = -1                // last seen index of STREAM_MUSIC
     private var virtualDb = 0.0          // MIRROR_FIXED / REMOTE: the master in dB
     private var session: MediaSession? = null
+    val absolute = AbsoluteVolume(svc) { i, mx -> main.post { fromIndex(i, mx) } }
+    private val devices = object : AudioDeviceCallback() {
+        // the XMOS (sound) may come up after the CP2102 (control)
+        override fun onAudioDevicesAdded(added: Array<out AudioDeviceInfo>) { if (mode == VolumeMode.ABSOLUTE) tryAbsolute() }
+        override fun onAudioDevicesRemoved(removed: Array<out AudioDeviceInfo>) {
+            if (mode == VolumeMode.ABSOLUTE && AbsoluteVolume.usbOutput(am) == null) absolute.disable()
+        }
+    }
 
     private val max get() = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
     private val index get() = am.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -56,9 +68,11 @@ class VolumeControl(private val svc: ForgeService) {
             stopListening()
             session?.release()
             session = null
+            if (was == VolumeMode.ABSOLUTE) { absolute.disable(); am.unregisterAudioDeviceCallback(devices) }
             last = -1
             when (mode) {
                 VolumeMode.OFF -> {}
+                VolumeMode.ABSOLUTE -> am.registerAudioDeviceCallback(devices, main)
                 VolumeMode.MIRROR, VolumeMode.MIRROR_FIXED -> startListening()
                 VolumeMode.REMOTE -> main.post { startSession() }
             }
@@ -73,8 +87,34 @@ class VolumeControl(private val svc: ForgeService) {
             VolumeMode.MIRROR -> { last = -1; changed() }
             VolumeMode.MIRROR_FIXED -> park()
             VolumeMode.REMOTE -> session?.let { startSession() }
+            VolumeMode.ABSOLUTE -> tryAbsolute()
             VolumeMode.OFF -> {}
         }
+    }
+
+    /** the Forge does not answer (any more): no absolute volume without control, at once */
+    fun onOffline() = absolute.disable()
+
+    /** the master changed on the Forge (GUI, other apps, the Forge itself) */
+    fun onMaster(value: Int) = main.post {
+        if (mode == VolumeMode.ABSOLUTE) absolute.follow(toIndex(value, absolute.max))
+    }
+
+    private fun tryAbsolute() {
+        if (svc.status != ForgeService.Status.ONLINE || absolute.active) return
+        absolute.enable(svc.masterValue?.let { toIndex(it, absolute.max) } ?: absolute.max)
+        svc.stateChanged()
+    }
+
+    /** index of the Android volume -> master, as MIRROR: index/max over rangeDb, 0 = muted */
+    private fun fromIndex(i: Int, mx: Int) {
+        svc.setMaster(if (i <= 0) 0 else masterValue(-s.rangeDb * (1.0 - i.toDouble() / mx.coerceAtLeast(1))))
+    }
+
+    private fun toIndex(value: Int, mx: Int): Int {
+        if (value == 0) return 0
+        val db = masterDb(value).coerceIn(-s.rangeDb.toDouble(), 0.0)
+        return (mx * (1.0 + db / s.rangeDb)).roundToInt().coerceIn(1, mx)
     }
 
     private fun startListening() {
@@ -143,6 +183,8 @@ class VolumeControl(private val svc: ForgeService) {
     }
 
     fun stop() {
+        absolute.disable()
+        runCatching { am.unregisterAudioDeviceCallback(devices) }
         stopListening()
         session?.release()
         session = null

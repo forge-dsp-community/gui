@@ -85,7 +85,11 @@ Pages-Seite. Die Android-Statusleiste ist ausgeblendet (Wischen vom oberen Rand 
 Die Verbindung hält ein Hintergrunddienst (`android/…/service/`), auch ohne geöffnete Oberfläche; er startet beim
 Einstecken des Forge (ohne die Oberfläche zu öffnen) und mit dem Headunit. Er lässt auf Wunsch die Android-Lautstärke
 auf den Forge-Master (Steuerblock „Lautstärke“) wirken: spiegeln, spiegeln mit festem Android-Pegel oder als
-Remote-Lautstärke (Einstellungen › Android-App). Andere Apps senden mit der Berechtigung
+Remote-Lautstärke (Einstellungen › Android-App). Im eigenen ROM, mit der App als privilegierter System-App, gibt es
+zusätzlich „Absolut“ (#31): absolute Lautstärke auf dem USB-Audiogerät, Android gibt 0 dB aus und der Index stellt den
+Master, nur solange der Forge antwortet (sonst sofort zurück auf normale Lautstärke). Das ROM legt dafür
+`android/rom/privapp-permissions-forgedsp.xml` (Berechtigungen) und `android/rom/sysconfig-forgedsp.xml` (Freigabe der
+System-API) neben die APK. Andere Apps senden mit der Berechtigung
 `io.github.psych0d0g.forgedsp.permission.CONTROL` Zeilen per Broadcast `io.github.psych0d0g.forgedsp.action.SEND`
 (Extra `line`, optional `id`, Paket `io.github.psych0d0g.forgedsp`) und bekommen `…action.ANSWER` (Extras `id`,
 `lines`, ggf. `error`) und die Ereignisse des Forge als `…action.EVENT` (Extra `line`).
