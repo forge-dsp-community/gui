@@ -91,10 +91,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS
+          cd out
           v="${GITHUB_REF_NAME#v}"
           notes=(--notes "Desktop-App der Forge-DSP-GUI. Web: https://psych0d0g.github.io/forge-dsp-gui-ng/")
           [ -f "$GITHUB_WORKSPACE/docs/releases/$v.md" ] && notes=(--notes-file "$GITHUB_WORKSPACE/docs/releases/$v.md")
           gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "Forge DSP GUI $v" "${notes[@]}"
           gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber *
+          # SHA256SUMS together with the APK of the android workflow: its lines stay, ours are replaced
+          sha256sum * > "$RUNNER_TEMP/own"
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" -p SHA256SUMS -O "$RUNNER_TEMP/old" 2>/dev/null || : > "$RUNNER_TEMP/old"
+          { awk 'NR==FNR{own[$2]=1;next} !($2 in own)' "$RUNNER_TEMP/own" "$RUNNER_TEMP/old"; cat "$RUNNER_TEMP/own"; } | sort -k2 > "$RUNNER_TEMP/SHA256SUMS"
+          cat "$RUNNER_TEMP/SHA256SUMS"
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "$RUNNER_TEMP/SHA256SUMS"

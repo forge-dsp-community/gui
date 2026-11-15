@@ -70,3 +70,9 @@ jobs:
           # the desktop workflow may create it at the same time
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Forge DSP GUI $v" "${notes[@]}" || gh release view "$GITHUB_REF_NAME" >/dev/null
           gh release upload "$GITHUB_REF_NAME" --clobber out/*.apk
+          # the APK into SHA256SUMS (the desktop workflow writes the rest; the app checks against it)
+          (cd out && sha256sum *.apk) > "$RUNNER_TEMP/own"
+          gh release download "$GITHUB_REF_NAME" -p SHA256SUMS -O "$RUNNER_TEMP/old" 2>/dev/null || : > "$RUNNER_TEMP/old"
+          { awk 'NR==FNR{own[$2]=1;next} !($2 in own)' "$RUNNER_TEMP/own" "$RUNNER_TEMP/old"; cat "$RUNNER_TEMP/own"; } | sort -k2 > "$RUNNER_TEMP/SHA256SUMS"
+          cat "$RUNNER_TEMP/SHA256SUMS"
+          gh release upload "$GITHUB_REF_NAME" --clobber "$RUNNER_TEMP/SHA256SUMS"

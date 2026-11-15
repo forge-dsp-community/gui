@@ -95,7 +95,7 @@ den Secrets `ANDROID_KEYSTORE` (base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_K
 er den Debug-Schlüssel, ein Release bricht dann ab. Version aus dem letzten Tag (`1.2.0`, Zwischenstände
 `1.2.0-5-gabc1234`), Versionscode `((x·100+y)·100+z)·1000 + Commits seit dem Tag`. Die App aktualisiert sich selbst aus
 dem neuesten GitHub-Release (Einstellungen › App-Update, beim Start höchstens alle 6 Stunden geprüft, Hinweis auf der
-Seite *Fahrzeug*): Download der APK, Abgleich mit `SHA256SUMS`, Installation über den PackageInstaller. Beim ersten Mal
+Seite *Fahrzeug*): Download der APK, Abgleich mit `SHA256SUMS` des Releases (beide Workflows führen sie zusammen), Installation über den PackageInstaller. Beim ersten Mal
 fragt Android („Unbekannte Apps installieren“), ab Android 12 danach ohne Rückfrage.
 
 Der ESP32 öffnet standardmäßig das WLAN `forge-dsp` (Passwort `forge-dsp-setup`, bitte in menuconfig ändern), die App liegt unter http://192.168.4.1/. Optional tritt er zusätzlich einem bestehenden WLAN bei.
