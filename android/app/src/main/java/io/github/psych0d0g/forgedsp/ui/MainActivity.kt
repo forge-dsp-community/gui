@@ -20,6 +20,9 @@ import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import io.github.psych0d0g.forgedsp.service.ForgeService
@@ -59,6 +62,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         web = WebView(this)
         setContentView(web)
+        fullscreen()
         val assets = WebViewAssetLoader.Builder().addPathHandler("/assets/", WebViewAssetLoader.AssetsPathHandler(this)).build()
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
@@ -95,6 +99,20 @@ class MainActivity : ComponentActivity() {
         })
         if (savedInstanceState == null) web.loadUrl("https://appassets.androidplatform.net/assets/index.html")
         else web.restoreState(savedInstanceState)
+    }
+
+    /** no status bar on the head unit (1024x600 is little room); a swipe from the top shows it for a moment */
+    private fun fullscreen() {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.statusBars())
+        }
+    }
+
+    // dialogs (file picker, permission) and the swipe bring it back; hide it again with the focus
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) fullscreen()
     }
 
     /** "save as" for a download of the GUI; done("") = written, "cancel", or an error text */

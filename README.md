@@ -81,7 +81,7 @@ Android-App (`android/`, Kotlin): die gebaute Web-App (`dist/`) als Assets in ei
 (`https://appassets.androidplatform.net/assets/index.html`, offline). Die USB-Verbindung zum CP2102 läuft über
 usb-serial-for-android, in die Seite gereicht als `window.ForgeAndroid` (`src/lib/android.ts`: Zeilen, rohe Bytes für den
 Bootloader, Baudrate, „Speichern unter“). Dateiauswahl über die Dateien-App des Systems, Firmware-Releases von der
-Pages-Seite. Bauen: `npm run build`, dann `gradle -p android assembleRelease` (JDK 17, Android-SDK 35, Gradle 8.10.2).
+Pages-Seite. Die Android-Statusleiste ist ausgeblendet (Wischen vom oberen Rand zeigt sie kurz). Bauen: `npm run build`, dann `gradle -p android assembleRelease` (JDK 17, Android-SDK 35, Gradle 8.10.2).
 Die Verbindung hält ein Hintergrunddienst (`android/…/service/`), auch ohne geöffnete Oberfläche; er startet beim
 Einstecken des Forge (ohne die Oberfläche zu öffnen) und mit dem Headunit. Er lässt auf Wunsch die Android-Lautstärke
 auf den Forge-Master (Steuerblock „Lautstärke“) wirken: spiegeln, spiegeln mit festem Android-Pegel oder als
