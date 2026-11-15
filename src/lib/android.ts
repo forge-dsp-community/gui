@@ -6,6 +6,7 @@
 //     write(base64) / writeRaw(base64) / setBaud(baud) / close()   (writeRaw: bootloader, the service keeps quiet)
 //     settings(): JSON / setSettings(JSON): error / refreshMaster()    the background service (volume, autostart)
 //     save(id, base64, name, mime)        "save as" (Storage Access Framework); settle(id, error|"cancel")
+//     update(): JSON / checkUpdate() / installUpdate()   self-update from the GitHub releases
 //   window.__forgeAndroid  (this file)
 //     data(base64)                        received bytes
 //     gone()                              the Forge was unplugged
@@ -23,6 +24,9 @@ interface Bridge {
   setBaud(baud: number): void;
   close(): void;
   save(id: number, b64: string, name: string, mime: string): void;
+  update?(): string;
+  checkUpdate?(): void;
+  installUpdate?(): void;
 }
 
 const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as unknown as { ForgeAndroid?: Bridge }).ForgeAndroid ?? null) : null);
@@ -111,3 +115,14 @@ export async function androidSave(data: Uint8Array, name: string, mime = "applic
   if (err) throw new Error(err);
   return true;
 }
+
+/** self-update of the app (android/…/update/Updater.kt) */
+export type UpdateState = "IDLE" | "CHECKING" | "CURRENT" | "AVAILABLE" | "DOWNLOADING" | "INSTALLING" | "PERMISSION" | "ERROR";
+export interface AndroidUpdate { current: string; code: number; state: UpdateState; latest: string | null; progress: number; error: string }
+export function androidUpdate(): AndroidUpdate | null {
+  const b = bridge();
+  if (!b?.update) return null;
+  try { return JSON.parse(b.update()) as AndroidUpdate; } catch { return null; }
+}
+export const checkAndroidUpdate = () => bridge()?.checkUpdate?.();
+export const installAndroidUpdate = () => bridge()?.installUpdate?.();

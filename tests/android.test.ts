@@ -5,6 +5,7 @@ const sent: string[] = [];
 const raw: string[] = [];
 let stored: Record<string, unknown> = { volumeMode: "OFF", rangeDb: 60, stepDb: 1, autostart: true, status: "ONLINE", master: [58, 59], masterValue: 231 };
 let bauds: number[] = [];
+let upd = { current: "1.1.0-40-g9689c4b", code: 10100040, state: "IDLE", latest: null as string | null, progress: 0, error: "" };
 const g = globalThis as unknown as { window: Record<string, unknown>; btoa: typeof btoa; atob: typeof atob };
 type Hooks = { data(b64: string): void; settle(id: number, err: string): void; attached(): void };
 const hooks = () => g.window.__forgeAndroid as Hooks;
@@ -22,6 +23,9 @@ beforeAll(async () => {
       refreshMaster: () => {},
       setBaud: (b: number) => bauds.push(b),
       close: () => {},
+      update: () => JSON.stringify(upd),
+      checkUpdate: () => { upd = { ...upd, state: "AVAILABLE", latest: "1.2.0" }; },
+      installUpdate: () => { upd = { ...upd, state: "DOWNLOADING", progress: 10 }; },
       save: (id: number, b64: string, name: string) => setTimeout(() => hooks().settle(id, name === "no.cfg" ? "cancel" : atob(b64) === "x" ? "" : "bad"), 1),
     },
   };
@@ -68,5 +72,12 @@ describe("Android bridge", () => {
     android.onAndroidAttached(() => n++);
     hooks().attached();
     expect(n).toBe(1);
+  });
+  it("self-update", () => {
+    expect(android.androidUpdate()?.state).toBe("IDLE");
+    android.checkAndroidUpdate();
+    expect(android.androidUpdate()).toMatchObject({ state: "AVAILABLE", latest: "1.2.0" });
+    android.installAndroidUpdate();
+    expect(android.androidUpdate()).toMatchObject({ state: "DOWNLOADING", progress: 10 });
   });
 });

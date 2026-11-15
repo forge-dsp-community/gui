@@ -15,6 +15,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # tags for the version
       - uses: actions/setup-node@v4
         with:
           node-version: 26
@@ -29,10 +31,28 @@ jobs:
         with:
           gradle-version: 8.10.2
       - name: APK
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          v="${GITHUB_REF_NAME#v}"
-          [[ "$GITHUB_REF" == refs/tags/v* ]] || v="0.0.0-${GITHUB_SHA::7}"
-          gradle -p android assembleRelease -PversionName="$v" -PversionCode="${GITHUB_RUN_NUMBER}"
+          # version from the last tag: v1.2.0 -> 1.2.0, 5 commits later -> 1.2.0-5-gabc1234
+          d=$(git describe --tags --match 'v[0-9]*.[0-9]*.[0-9]*' --long 2>/dev/null || echo "v0.0.0-$(git rev-list --count HEAD)-g${GITHUB_SHA::7}")
+          tag=${d%-*-*}; n=${d#"$tag"-}; n=${n%%-*}; base=${tag#v}
+          IFS=. read -r x y z <<<"${base%%-*}"
+          v="$base"; [ "$n" = 0 ] || v="$base-$n-g${GITHUB_SHA::7}"
+          [ "$n" -gt 999 ] && n=999
+          code=$(( ((x*100+y)*100+z)*1000 + n ))
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
+            export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "::error::no release key (secret ANDROID_KEYSTORE): a release must not carry a debug-signed APK"; exit 1
+          else
+            echo "::warning::no release key: debug-signed"
+          fi
+          echo "version $v, code $code"
+          gradle -p android assembleRelease -PversionName="$v" -PversionCode="$code"
           mkdir -p out
           cp android/app/build/outputs/apk/release/*.apk "out/forge-dsp-$v-android.apk"
       - uses: actions/upload-artifact@v4

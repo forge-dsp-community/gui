@@ -18,15 +18,26 @@ android {
         applicationId = "io.github.psych0d0g.forgedsp"
         minSdk = 24          // head units from Android 7
         targetSdk = 35
+        // CI: from the version, ((x*100+y)*100+z)*1000 + commits since the tag (update/Updater.kt)
         versionCode = (project.findProperty("versionCode") as String?)?.toInt() ?: 1
         versionName = (project.findProperty("versionName") as String?) ?: "0.1.0-dev"
+    }
+    // the release key (CI: secret ANDROID_KEYSTORE); updates install only with the same signature
+    val ks = System.getenv("ANDROID_KEYSTORE_FILE")
+    signingConfigs {
+        if (ks != null) create("release") {
+            storeFile = file(ks)
+            storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS") ?: "forge-dsp"
+            keyPassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+        }
     }
     sourceSets["main"].assets.srcDir(layout.buildDirectory.dir("web"))
     buildTypes {
         release {
             isMinifyEnabled = false
-            // signed with the debug key unless CI provides a keystore (installable, not for a store)
-            signingConfig = signingConfigs.getByName("debug")
+            // without the release key (forks, local builds): the debug key, installable but no updates over it
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {

@@ -90,7 +90,13 @@ Remote-Lautstärke (Einstellungen › Android-App). Andere Apps senden mit der B
 (Extra `line`, optional `id`, Paket `io.github.psych0d0g.forgedsp`) und bekommen `…action.ANSWER` (Extras `id`,
 `lines`, ggf. `error`) und die Ereignisse des Forge als `…action.EVENT` (Extra `line`).
 Die Seite *Fahrzeug* und das Touch-Layout gehen auch im Browser: `?skin=touch&page=car`. Die APK baut
-`.github/workflows/android.yml` (jeder Push: Artefakt, Tag `v*`: an das Release), signiert mit dem Debug-Schlüssel.
+`.github/workflows/android.yml` (jeder Push: Artefakt, Tag `v*`: an das Release), signiert mit dem Release-Schlüssel aus
+den Secrets `ANDROID_KEYSTORE` (base64), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`. Ohne Schlüssel (Forks) nimmt
+er den Debug-Schlüssel, ein Release bricht dann ab. Version aus dem letzten Tag (`1.2.0`, Zwischenstände
+`1.2.0-5-gabc1234`), Versionscode `((x·100+y)·100+z)·1000 + Commits seit dem Tag`. Die App aktualisiert sich selbst aus
+dem neuesten GitHub-Release (Einstellungen › App-Update, beim Start höchstens alle 6 Stunden geprüft, Hinweis auf der
+Seite *Fahrzeug*): Download der APK, Abgleich mit `SHA256SUMS`, Installation über den PackageInstaller. Beim ersten Mal
+fragt Android („Unbekannte Apps installieren“), ab Android 12 danach ohne Rückfrage.
 
 Der ESP32 öffnet standardmäßig das WLAN `forge-dsp` (Passwort `forge-dsp-setup`, bitte in menuconfig ändern), die App liegt unter http://192.168.4.1/. Optional tritt er zusätzlich einem bestehenden WLAN bei.
 

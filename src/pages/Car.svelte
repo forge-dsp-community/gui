@@ -7,7 +7,7 @@
   import { app, loadPreset, muteAll, setMaster, toggleOut, watchSpeed, write } from "../lib/app.svelte";
   import { isPort, masterDb, masterOf, masterValue, sourceNames } from "../lib/device";
   import VFader from "../components/VFader.svelte";
-  import { isAndroid } from "../lib/android";
+  import { androidUpdate, isAndroid } from "../lib/android";
 
   const d = $derived(app.device);
   const ready = $derived(app.status === "online" && !app.bootloader);
@@ -26,6 +26,11 @@
   const mdb = $derived(mv === undefined ? null : masterDb(mv));
   const mtext = $derived(mdb === null ? "–" : mdb <= MIN_DB ? "−∞" : (mdb < 0 ? "−" : "") + Math.abs(mdb).toFixed(1));
   const put = (x: number) => setMaster(x <= MIN_DB ? 0 : masterValue(Math.min(0, x)));
+
+  // a newer app in the releases: a hint to the settings
+  let upd = $state(androidUpdate());
+  const updTimer = setInterval(() => (upd = androidUpdate()), 5000);
+  onDestroy(() => clearInterval(updTimer));
 
   let loading = $state<number | null>(null);
   let note = $state("");
@@ -71,6 +76,9 @@
     </div>
   </section>
 
+  {#if upd?.state === "AVAILABLE"}
+    <button class="more upd" onclick={() => (app.page = "settings")}>{t("car.update", { v: upd.latest ?? "" })}</button>
+  {/if}
   <!-- the app has no overview: the menu with all pages -->
   <button class="more" onclick={() => (isAndroid() ? (app.navOpen = true) : (app.page = "overview"))}>{t("car.allSettings")}</button>
  </div>
@@ -149,4 +157,5 @@
   .warn { color: var(--warn); }
   .small { font-size: .82rem; margin: 0; }
   .more { min-height: 3rem; }
+  .upd { border-color: var(--accent); color: var(--accent); }
 </style>

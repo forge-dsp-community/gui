@@ -6,6 +6,7 @@ import android.webkit.WebView
 import androidx.lifecycle.lifecycleScope
 import io.github.psych0d0g.forgedsp.service.ForgeService
 import io.github.psych0d0g.forgedsp.service.Settings
+import io.github.psych0d0g.forgedsp.update.Updater
 import io.github.psych0d0g.forgedsp.usb.UsbLink
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -93,6 +94,16 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
     /** read the volume block again (after the control blocks changed) */
     @JavascriptInterface
     fun refreshMaster() { act.lifecycleScope.launch { svc?.readMaster() } }
+
+    /** self-update from the GitHub releases: state as JSON, check, download and install */
+    @JavascriptInterface
+    fun update(): String = Updater.json(act)
+
+    @JavascriptInterface
+    fun checkUpdate() = Updater.check(act)
+
+    @JavascriptInterface
+    fun installUpdate() { web.post { Updater.install(act) } }
 
     fun shutdown() = close()
 }

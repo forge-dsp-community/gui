@@ -26,6 +26,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
 import io.github.psych0d0g.forgedsp.service.ForgeService
+import io.github.psych0d0g.forgedsp.update.Updater
 
 /**
  * The web GUI (bundled, offline) in a WebView: https://appassets.androidplatform.net/assets/index.html
@@ -97,6 +98,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
         })
+        Updater.checkSometimes(this)
         if (savedInstanceState == null) web.loadUrl("https://appassets.androidplatform.net/assets/index.html")
         else web.restoreState(savedInstanceState)
     }

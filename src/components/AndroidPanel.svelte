@@ -3,12 +3,16 @@
   // the Forge, start with the head unit, state. Only in the app (window.ForgeAndroid).
   import { onDestroy } from "svelte";
   import { t, tk, tx } from "../lib/i18n/index.svelte";
-  import { androidSettings, setAndroidSettings, type AndroidSettings, type VolumeMode } from "../lib/android";
+  import { androidSettings, androidUpdate, checkAndroidUpdate, installAndroidUpdate, setAndroidSettings,
+    type AndroidSettings, type VolumeMode } from "../lib/android";
   import { masterDb } from "../lib/device";
 
   let s = $state<AndroidSettings | null>(androidSettings());
   let err = $state("");
-  const timer = setInterval(() => (s = androidSettings()), 2000);
+  let u = $state(androidUpdate());
+  const busy = $derived(u?.state === "CHECKING" || u?.state === "DOWNLOADING" || u?.state === "INSTALLING");
+  let tick = 0;
+  const timer = setInterval(() => { u = androidUpdate(); if (++tick % 4 === 0) s = androidSettings(); }, 500);
   onDestroy(() => clearInterval(timer));
 
   const MODES: { v: VolumeMode; t: string; d: string }[] = [
@@ -61,6 +65,27 @@
     <p class="muted small">{t("android.api")}</p>
     {#if err}<p class="warn small">{err}</p>{/if}
   </section>
+
+  {#if u}
+    <section class="panel box" data-testid="android-update">
+      <h3>{t("android.update")}</h3>
+      <p class="small">{t("android.updateCurrent", { v: u.current })}
+        {#if u.state === "CURRENT"}· {t("android.updateNone")}
+        {:else if u.state === "AVAILABLE" || u.state === "PERMISSION"}· <strong>{t("android.updateAvailable", { v: u.latest ?? "" })}</strong>
+        {:else if u.state === "CHECKING"}· {t("android.updateChecking")}
+        {:else if u.state === "DOWNLOADING"}· {t("android.updateDownloading", { p: u.progress })}
+        {:else if u.state === "INSTALLING"}· {t("android.updateInstalling")}{/if}</p>
+      {#if u.state === "PERMISSION"}<p class="small warn">{t("android.updatePermission")}</p>{/if}
+      {#if u.state === "ERROR"}<p class="small warn">{t("android.updateError", { e: u.error })}</p>{/if}
+      <div class="btns">
+        <button disabled={busy} onclick={() => { checkAndroidUpdate(); u = androidUpdate(); }}>{t("android.updateCheck")}</button>
+        {#if u.state === "AVAILABLE" || u.state === "PERMISSION" || (u.state === "ERROR" && u.latest)}
+          <button class="primary" onclick={() => { installAndroidUpdate(); u = androidUpdate(); }}>{t("android.updateInstall", { v: u.latest ?? "" })}</button>
+        {/if}
+      </div>
+      <p class="muted small">{t("android.updateHint")}</p>
+    </section>
+  {/if}
 {/if}
 
 <style>
@@ -82,5 +107,6 @@
   .short { width: 5.5rem; }
   .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
   .row span { display: grid; gap: .1rem; }
+  .btns { display: flex; gap: .5rem; flex-wrap: wrap; }
   .toggle { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); flex: none; }
 </style>
