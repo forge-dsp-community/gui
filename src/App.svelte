@@ -323,6 +323,9 @@
   :global(:root[data-skin="touch"]) .menu { display: inline-flex; padding: .5rem; }
   :global(:root[data-skin="touch"]) main { padding: .7rem; }
   :global(:root[data-skin="touch"]) .top { padding-top: .35rem; padding-bottom: .35rem; }
+  /* the footer (status line, shortcuts) is not needed on the head unit: more height for the page */
+  :global(:root[data-skin="touch"]) .shell { grid-template: "top" auto "main" 1fr / minmax(0, 1fr); }
+  :global(:root[data-skin="touch"]) .status { display: none; }
   /* phone: level and master in a row of their own below the device */
   @media (max-width: 40rem) {
     .top { flex-wrap: wrap; row-gap: .4rem; padding: .5rem .75rem; }
