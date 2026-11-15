@@ -28,12 +28,12 @@
   const version = __APP_VERSION__;
   const commit = __APP_COMMIT__;
   let onBridge = $state(false);
-  let navOpen = $state(false);
   let theme = $state<"dark" | "light" | "">("");
 
   // navigation in the order of the signal path, then control, then tools
   const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
-    { group: tk("common.device"), items: [{ id: "overview", label: tk("common.overview") }, { id: "car", label: tk("car.title") }] },
+    // the Android app (#29) starts at "car"; the overview is left out there
+    { group: tk("common.device"), items: [...(isAndroid() ? [] : [{ id: "overview" as const, label: tk("common.overview") }]), { id: "car" as const, label: tk("car.title") }] },
     { group: tk("app.signalPath"), items: [
       { id: "mixer", label: tk("common.mixer") }, { id: "filters", label: tk("common.filtersEQ") }, { id: "delay", label: tk("common.delay") }] },
     { group: tk("app.control"), items: [{ id: "modc", label: tk("common.controlBlocks") }, { id: "presets", label: tk("common.presets") },
@@ -67,7 +67,7 @@
       onAndroidAttached(() => { if (app.status === "offline") void connect("usb"); });
       // the back key of the head unit: menu closed, then the car page, then the app leaves
       (window as unknown as { __forgeAndroidBack: () => boolean }).__forgeAndroidBack = () => {
-        if (navOpen) { navOpen = false; return true; }
+        if (app.navOpen) { app.navOpen = false; return true; }
         if (app.page !== "car") { app.page = "car"; return true; }
         return false;
       };
@@ -119,7 +119,7 @@
   function keyUp(e: KeyboardEvent) { if (e.key.toLowerCase() === "p") shortcuts.phaseKey = false; }
   function open(id: PageId) {
     app.page = id;
-    navOpen = false;
+    app.navOpen = false;
   }
   const online = $derived(app.status === "online");
   const title = $derived(app.bootloader ? (app.device.identity.model ? t("app.forgeBootloaderModel", { model: app.device.identity.model }) : t("app.forgeBootloader"))
@@ -127,7 +127,7 @@
 </script>
 
 <svelte:window onkeydown={keys} onkeyup={keyUp} onblur={() => (shortcuts.phaseKey = false)} />
-<div class="shell" class:nav-open={navOpen}>
+<div class="shell" class:nav-open={app.navOpen}>
   <aside class="glass side">
     <div class="brand"><span class="logo">F</span><span>Forge DSP</span></div>
     <nav>
@@ -144,17 +144,17 @@
       {/each}
     </nav>
   </aside>
-  <button class="scrim" aria-label={t("app.closeMenu")} onclick={() => (navOpen = false)}></button>
+  <button class="scrim" aria-label={t("app.closeMenu")} onclick={() => (app.navOpen = false)}></button>
 
   <header class="glass top">
-    <button class="ghost menu" aria-label={t("app.menu")} onclick={() => (navOpen = !navOpen)}><Icon name="menu" size={20} /></button>
+    <button class="ghost menu" aria-label={t("app.menu")} onclick={() => (app.navOpen = !app.navOpen)}><Icon name="menu" size={20} /></button>
     <div class="device">
       <span class="dot" class:ok={online} class:busy={app.status === "connecting" || app.status === "reading"}></span>
       <div><strong>{title}</strong>
         <span class="muted sub">{online ? `${app.transportName}${app.demo ? ` ${t("app.noDevice2")}` : ""}${app.bootloader ? `, Bootloader ${app.bootloader.version}` : ""}`
           : app.status === "offline" ? t("common.notConnected") : t("app.connecting")}</span></div>
     </div>
-    {#if app.chain.length > 1}
+    {#if app.chain.length > 1 && !isAndroid()}
       <select class="chainsel" aria-label={t("app.chainDevice")} value={app.target} disabled={app.status !== "online"}
         onchange={(e) => selectDevice(Number(e.currentTarget.value))}>
         {#each app.chain as c}<option value={c.n}>{t("app.chainEntry", { n: c.n, model: c.model || "?" })}</option>{/each}
@@ -168,7 +168,7 @@
           <button class="ghost hist" title={t("app.redo")} aria-label={t("app.redo")} disabled={!history.canRedo || history.busy} onclick={redoChange}>↷</button>
         {/if}
         {#if !app.demo && !app.bootloader}<button class="ghost" title={t("app.readEverythingAgain")} onclick={reload}><Icon name="refresh" /></button>{/if}
-        <button onclick={disconnect}>{t("app.disconnect")}</button>
+        {#if !isAndroid()}<button onclick={disconnect}>{t("app.disconnect")}</button>{/if}<!-- the app: the service holds the connection (#29) -->
       {:else if app.status === "offline"}
         <!-- the welcome panel has the connect buttons; here only where it is not shown -->
         {#if app.page === "console"}
@@ -323,6 +323,12 @@
   :global(:root[data-skin="touch"]) .menu { display: inline-flex; padding: .5rem; }
   :global(:root[data-skin="touch"]) main { padding: .7rem; }
   :global(:root[data-skin="touch"]) .top { padding-top: .35rem; padding-bottom: .35rem; }
+  /* one line of a header: name without the connection line, no level meter and language (settings) */
+  :global(:root[data-skin="touch"]) .device strong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  :global(:root[data-skin="touch"]) .device > div { min-width: 0; }
+  :global(:root[data-skin="touch"]) .sub, :global(:root[data-skin="touch"]) .lang { display: none; }
+  :global(:root[data-skin="touch"]) .live > :global(.vu) { display: none; }
+  :global(:root[data-skin="touch"]) .live { flex: 0 1 auto; min-width: 0; }
   /* the footer (status line, shortcuts) is not needed on the head unit: more height for the page */
   :global(:root[data-skin="touch"]) .shell { grid-template: "top" auto "main" 1fr / minmax(0, 1fr); }
   :global(:root[data-skin="touch"]) .status { display: none; }

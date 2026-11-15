@@ -88,3 +88,6 @@ input[type="text"], input:not([type]) {
 :root[data-skin="touch"] button, :root[data-skin="touch"] select { min-height: 44px; }
 :root[data-skin="touch"] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { min-height: 40px; }
 :root[data-skin="touch"] input[type="checkbox"], :root[data-skin="touch"] input[type="radio"] { width: 1.4rem; height: 1.4rem; }
+/* the pages' intros take two or three lines of the 600: left out, the title stays */
+:root[data-skin="touch"] main header.head > p.muted, :root[data-skin="touch"] main header.head > div > p.muted { display: none; }
+:root[data-skin="touch"] main header.head h2 { font-size: 1.25rem; margin: 0 0 .2rem; }

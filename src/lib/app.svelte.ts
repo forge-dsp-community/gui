@@ -37,6 +37,8 @@ export type PageId = "overview" | "car" | "device" | "mixer" | "filters" | "dela
 
 export const app = $state({
   page: "overview" as PageId,
+  /** the navigation as a drawer is open (narrow screens, touch skin) */
+  navOpen: false,
   status: "offline" as "offline" | "connecting" | "reading" | "online",
   transportName: "",
   demo: false,
@@ -144,7 +146,7 @@ export async function connect(kind: "usb" | "esp" | "demo" | "sim") {
     loadInNames();
     app.status = "online";
     historyReset(app.device);
-    await findChain();
+    if (!isAndroid()) await findChain();   // the app (#29): one Forge at the head unit, no device switch
   } catch (e) {
     app.error = explain(e);
     await disconnect();
@@ -410,7 +412,7 @@ export async function selectDevice(n: number) {
   if (!client || n === app.target) return;
   client.target = n as 1 | 2 | 3 | 4 | 5 | 6;
   app.target = n;
-  if (app.page === "firmware" && n !== 1) app.page = "overview";
+  if (app.page === "firmware" && n !== 1) app.page = isAndroid() ? "car" : "overview";
   if (app.demo) { app.device = demoState(n); historyReset(app.device); return; }
   try {
     await reload();

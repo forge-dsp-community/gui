@@ -65,6 +65,12 @@ class MainActivity : ComponentActivity() {
         web.webViewClient = object : WebViewClientCompat() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
                 assets.shouldInterceptRequest(request.url)
+            // links out of the app (GitHub, data sheets) go to the browser; the app stays as it is
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (request.url.host == "appassets.androidplatform.net") return false
+                runCatching { startActivity(Intent(Intent.ACTION_VIEW, request.url).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                return true
+            }
         }
         web.webChromeClient = object : WebChromeClient() {
             override fun onShowFileChooser(view: WebView, callback: ValueCallback<Array<Uri>>, params: FileChooserParams): Boolean {

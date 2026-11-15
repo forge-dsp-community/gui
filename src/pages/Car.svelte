@@ -7,6 +7,7 @@
   import { app, loadPreset, muteAll, setMaster, toggleOut, watchSpeed, write } from "../lib/app.svelte";
   import { isPort, masterDb, masterOf, masterValue, sourceNames } from "../lib/device";
   import VFader from "../components/VFader.svelte";
+  import { isAndroid } from "../lib/android";
 
   const d = $derived(app.device);
   const ready = $derived(app.status === "online" && !app.bootloader);
@@ -70,7 +71,8 @@
     </div>
   </section>
 
-  <button class="more" onclick={() => (app.page = "overview")}>{t("car.allSettings")}</button>
+  <!-- the app has no overview: the menu with all pages -->
+  <button class="more" onclick={() => (isAndroid() ? (app.navOpen = true) : (app.page = "overview"))}>{t("car.allSettings")}</button>
  </div>
  <div class="col">
   <section class="panel master">
