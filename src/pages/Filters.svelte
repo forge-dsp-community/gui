@@ -4,7 +4,7 @@
   import { tick, untrack } from "svelte";
   import { app, outName, setPoolLengths, write } from "../lib/app.svelte";
   import { channelColor } from "../lib/channelColors";
-  import { isPort, limitsOf, planCopy, poolOf, proposeGrow, rawToDb, sumsActiveAnywhere, type Biquad } from "../lib/device";
+  import { isPort, limitsOf, loudnessReserved, planCopy, poolOf, proposeGrow, rawToDb, sumsActiveAnywhere, type Biquad } from "../lib/device";
   import { coeffs, isActive, typeInfo, TYPES, viewRange, type SumPart } from "../lib/dsp/biquad";
   import { parseRew, planRew, type RewFilter } from "../lib/dsp/rew";
   import ResponsePlot from "../components/ResponsePlot.svelte";
@@ -98,7 +98,12 @@
     const b = bands.findIndex((s) => s.n === n);
     return b >= 0 ? String(b + 1) : String.fromCharCode(65 + Math.max(0, filters.findIndex((s) => s.n === n)));
   };
-  const free = $derived(slots.length - used.length);
+  // #77: the last two slots of a channel with a switched-on loudness block stay free for its shelves
+  const reserved = $derived(loudnessReserved(d));
+  const isReserved = (n: number) => reserved.has(`${ch}.${n}`);
+  const nReserved = $derived(slots.filter((s) => isReserved(s.n)).length);
+  const free = $derived(slots.filter((s) => s.bq.type === 0 && !isReserved(s.n)).length);
+  const conflicts = $derived(slots.filter((s) => isReserved(s.n) && isActive(s.bq)).length);
 
   // copy this channel onto others (#5)
   let copyOpen = $state(false);
@@ -203,8 +208,8 @@
     return true;
   }
   async function add(kind: "band" | "filter") {
-    if (!slots.some((s) => s.bq.type === 0) && !(canGrow && (await grow()))) return;
-    const slot = slots.find((s) => s.bq.type === 0);
+    if (!slots.some((s) => s.bq.type === 0 && !isReserved(s.n)) && !(canGrow && (await grow()))) return;
+    const slot = slots.find((s) => s.bq.type === 0 && !isReserved(s.n));
     if (!slot) return;
     update(slot.n, kind === "band" ? { type: EQ_Q, f: 1000, gain: 0, q: 1414, b: 707, flags: 128 }
       : { type: 9, f: 80, gain: 0, q: 707, b: 0, flags: 128 });  // Butterworth high pass
@@ -448,7 +453,9 @@
 <!-- EQ bands -->
 <section class="panel block">
   <div class="blockhead"><h3>{t("filters.eqBands")} <span class="muted num">{bands.length}</span></h3>
-    <span class="muted small">{t("filters.nMSlotsChannel", { n: free, m: slots.length })}{#if canGrow}
+    <span class="muted small">{t("filters.nMSlotsChannel", { n: free, m: slots.length })}{#if nReserved}
+      · <span data-testid="loudness-reserved">{t("filters.ldReserved", { n: nReserved })}</span>{/if}{#if conflicts}
+      · <span class="warnt">{t("filters.ldConflict", { n: conflicts })}</span>{/if}{#if canGrow}
       · <button class="link" onclick={() => (app.page = "biquads")}>{t("filters.allocateSlots")}</button>{/if}</span></div>
   <div class="strips">
     {#each bands as { n, bq } (n)}
@@ -496,6 +503,7 @@
 {/if}
 
 <style>
+  .warnt { color: var(--warn); }
   .poolbusy { color: var(--accent); font-size: .85rem; margin: .5rem 0; }
   .link { border: 0; background: none; padding: 0; color: var(--accent); font-size: inherit; cursor: pointer; }
   .head { margin-bottom: 1rem; }

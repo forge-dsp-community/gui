@@ -245,3 +245,43 @@ export function choiceSet(byte: number, f: { shift?: number; width?: number }, v
   const sh = f.shift ?? 0, mask = ((1 << (f.width ?? 8)) - 1) << sh;
   return ((byte & ~mask) | ((v << sh) & mask)) & 0xff;
 }
+
+/** MODC type 108 loudness (forge-dsp-firmware modc_loudness) */
+export const LOUDNESS_TYPE = 108;
+
+/** #77: channels of a loudness block, flags 1: bits 0..3 output pairs 1/2 … 7/8, bit 4 the sums 35/36 */
+export function loudnessChannels(mask: number): number[] {
+  const out: number[] = [];
+  for (let p = 0; p < 4; p++) if (mask & (1 << p)) out.push(2 * p + 1, 2 * p + 2);
+  if (mask & 0x10) out.push(35, 36);
+  return out;
+}
+
+/** the two biquads a loudness block takes per channel: the last two (bass shelf, treble shelf) */
+export function loudnessSlots(s: DeviceState, mask: number): { ch: number; n: number }[] {
+  const out: { ch: number; n: number }[] = [];
+  for (const ch of loudnessChannels(mask)) {
+    const nums = Object.keys(s.biquads[ch] ?? {}).map(Number);
+    if (nums.length < 2) continue;
+    const last = Math.max(...nums);
+    out.push({ ch, n: last - 1 }, { ch, n: last });
+  }
+  return out;
+}
+
+/** slots holding an active filter of the loaded preset: the firmware refuses to switch the block on
+ * then (unknown para) and never overwrites them */
+export function loudnessBusy(s: DeviceState, mask: number): { ch: number; n: number }[] {
+  return loudnessSlots(s, mask).filter(({ ch, n }) => {
+    const b = s.biquads[ch]?.[n];
+    return !!b && b.type !== 0 && (b.flags & 0x80) !== 0;
+  });
+}
+
+/** slots of the switched-on loudness blocks, "ch.n": the filter page keeps them free */
+export function loudnessReserved(s: DeviceState): Set<string> {
+  const r = new Set<string>();
+  for (const m of Object.values(s.modc))
+    if (m && m.type === LOUDNESS_TYPE && m.enable) for (const { ch, n } of loudnessSlots(s, m.flags[0])) r.add(`${ch}.${n}`);
+  return r;
+}

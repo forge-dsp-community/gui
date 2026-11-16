@@ -1,11 +1,11 @@
 <script lang="ts">
   import { t, tx } from "../lib/i18n/index.svelte";
-  import { app, sendModc } from "../lib/app.svelte";
+  import { app, outName, sendModc } from "../lib/app.svelte";
   import { availableTypes, copyModc, DEVICE_TYPES, emptyModc, eventOptions, modcName, modcText, modcType, onDevicePage, type Modc } from "../lib/device";
   import Icon from "../components/Icon.svelte";
   import ModcFields from "../components/ModcFields.svelte";
   import GalaPanel from "../components/GalaPanel.svelte";
-  import { GALA_TYPE } from "../lib/device";
+  import { GALA_TYPE, LOUDNESS_TYPE, loudnessBusy, loudnessChannels, loudnessSlots } from "../lib/device";
 
   const d = $derived(app.device);
   const total = $derived(d.identity.modcBlocks || 32);
@@ -22,6 +22,7 @@
   });
   let raw = $state(false);
   let err = $state("");
+  let ldErr = $state("");
   const m = $derived(sel !== null ? d.modc[sel] : undefined);
   const mt = $derived(m ? modcType(m.type) : undefined);
 
@@ -30,10 +31,26 @@
   async function send(n: number, before: Modc) {
     err = await sendModc(n, before);
   }
+  // #77: loudness needs the last two filters of its channels free; the firmware refuses otherwise
+  const slotName = (x: { ch: number; n: number }) =>
+    t("modc.ldSlot", { ch: x.ch === 35 ? t("common.sumA") : x.ch === 36 ? t("common.sumB") : outName(x.ch), n: x.n });
+  const busyList = (l: { ch: number; n: number }[]) => l.map(slotName).join(", ");
+  const ld = $derived(m && m.type === LOUDNESS_TYPE
+    ? { k: loudnessChannels(m.flags[0]).length, n: loudnessSlots(d, m.flags[0]).length, busy: loudnessBusy(d, m.flags[0]) } : null);
   function change(fn: (b: Modc) => void) {
     if (sel === null || !d.modc[sel]) return;
     const before = copyModc(d.modc[sel]);
     fn(d.modc[sel]);
+    const b = d.modc[sel];
+    ldErr = "";
+    if (b.type === LOUDNESS_TYPE && b.enable) {
+      const busy = loudnessBusy(d, b.flags[0]);
+      if (busy.length && (!before.enable || before.flags[0] !== b.flags[0])) {
+        d.modc[sel] = before;
+        ldErr = t("modc.ldRefused", { n: busy.length, list: busyList(busy) });
+        return;
+      }
+    }
     send(sel, before);
   }
   const byte = (e: Event) => Math.max(0, Math.min(255, Math.round(Number((e.currentTarget as HTMLInputElement).value)) || 0));
@@ -72,6 +89,8 @@
 </header>
 
 {#if err}<div class="panel alert" role="alert">{t("modc.refusedByDeviceErr", { err })}</div>{/if}
+{#if ldErr}<div class="panel alert" role="alert" data-testid="loudness-refused">{ldErr}
+  <button class="linkish" onclick={() => (app.page = "filters")}>{t("modc.ldToFilters")}</button></div>{/if}
 
 <div class="layout">
   <section class="panel list" aria-label={t("modc.blocks")}>
@@ -98,7 +117,16 @@
           {m.enable ? t("modc.active2") : t("common.off2")}</button>
         <button class="ghost del" disabled={fixed(sel)} title={t("modc.removeBlock")} aria-label={t("modc.removeBlock")} onclick={() => remove(sel!)}><Icon name="close" size={16} /></button>
       </div>
-      {#if mt}<p class="muted">{tx(mt.help)}</p>{:else}<p class="muted">{t("modc.fieldsTypeNotDescribed")}</p>{/if}
+      {#if mt}<p class="muted">{tx(mt.help)}</p>{#if ld}
+        <div class="ldinfo" data-testid="loudness-slots">
+          <p class="small">{ld.k ? t("modc.ldNeed", { n: ld.n, k: ld.k }) : t("modc.ldNone")}
+            {#if ld.k && !ld.busy.length}<span class="okt">{t("modc.ldFree")}</span>{/if}</p>
+          {#if ld.busy.length}
+            <p class="small warnt">{m.enable ? t("modc.ldBusyOn", { n: ld.busy.length, list: busyList(ld.busy) })
+              : t("modc.ldBusy", { n: ld.busy.length, list: busyList(ld.busy) })}
+              <button class="linkish" onclick={() => (app.page = "filters")}>{t("modc.ldToFilters")}</button></p>
+          {/if}
+        </div>{/if}{:else}<p class="muted">{t("modc.fieldsTypeNotDescribed")}</p>{/if}
       <p class="muted small">{t("modc.blockOutputsItsResult", { n: 96 + sel })}</p>
 
       {#if mt?.fields && !raw}
@@ -159,5 +187,9 @@
   .foot { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: .7rem; color: var(--muted); }
   code { font-size: .8rem; overflow-wrap: anywhere; }
   .hint { min-height: 8rem; place-content: center; }
+  .ldinfo { display: grid; gap: .3rem; padding: .5rem .7rem; border: 1px solid var(--line); border-radius: 8px; background: var(--raised); }
+  .ldinfo p { margin: 0; }
+  .okt { color: var(--ok); }
+  .warnt { color: var(--warn); }
   @media (max-width: 56rem) { .layout { grid-template-columns: minmax(0, 1fr); } }
 </style>
