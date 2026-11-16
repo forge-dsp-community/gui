@@ -50,11 +50,18 @@ class CommandReceiver : BroadcastReceiver() {
         const val ACTION_EVENT = "io.github.psych0d0g.forgedsp.action.EVENT"
 
         private fun answer(ctx: Context, id: String?, lines: List<String>, error: String?) {
+            // test rig: a shell cannot hold the permission the answers go out with; debug builds log them
+            if (ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
+                android.util.Log.i("ForgeCmd", "answer id=$id error=${error ?: ""} lines=${lines.joinToString("\u241E")}")
             val i = Intent(ACTION_ANSWER).putExtra("id", id).putExtra("lines", lines.toTypedArray())
             if (error != null) i.putExtra("error", error)
             ctx.sendBroadcast(i, PERMISSION)
         }
 
-        fun event(ctx: Context, line: String) = ctx.sendBroadcast(Intent(ACTION_EVENT).putExtra("line", line), PERMISSION)
+        fun event(ctx: Context, line: String) {
+            if (ctx.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0)
+                android.util.Log.i("ForgeCmd", "event $line")
+            ctx.sendBroadcast(Intent(ACTION_EVENT).putExtra("line", line), PERMISSION)
+        }
     }
 }
