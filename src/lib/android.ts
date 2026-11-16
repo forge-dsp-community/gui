@@ -7,6 +7,7 @@
 //     settings(): JSON / setSettings(JSON): error / refreshMaster()    the background service (volume, autostart)
 //     save(id, base64, name, mime)        "save as" (Storage Access Framework); settle(id, error|"cancel")
 //     update(): JSON / checkUpdate() / installUpdate()   self-update from the GitHub releases
+//     debuggable(): boolean               debug build (android/test-rig drives the GUI through window.__forgeRig)
 //   window.__forgeAndroid  (this file)
 //     data(base64)                        received bytes
 //     gone()                              the Forge was unplugged
@@ -27,12 +28,15 @@ interface Bridge {
   update?(): string;
   checkUpdate?(): void;
   installUpdate?(): void;
+  debuggable?(): boolean;
 }
 
 const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as unknown as { ForgeAndroid?: Bridge }).ForgeAndroid ?? null) : null);
 
 /** running inside the Android app */
 export const isAndroid = () => bridge() !== null;
+/** debug build of the app: the test rig (android/test-rig, #33) may drive the GUI */
+export const androidDebuggable = () => !!bridge()?.debuggable?.();
 
 const waiting = new Map<number, (err: string) => void>();
 let nextId = 1;

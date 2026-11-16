@@ -113,5 +113,9 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
     @JavascriptInterface
     fun installUpdate() { web.post { Updater.install(act) } }
 
+    /** debug build: the test rig (android/test-rig, #33) may drive the GUI */
+    @JavascriptInterface
+    fun debuggable(): Boolean = act.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
+
     fun shutdown() = close()
 }
