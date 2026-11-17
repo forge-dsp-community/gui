@@ -167,6 +167,9 @@ class ForgeService : Service() {
                     }.getOrNull()
                     if (link == null) { setStatus(Status.NO_ANSWER); return@withLock }
                 }
+                // #41: the GUI talks to the bootloader (firmware update): no handshake, no rate
+                // change (it would spoil the rate the bootloader measured); the port stays at 38400
+                if (quiet) { setStatus(Status.CONNECTING); return@withLock }
                 handshake()
             }
         }
