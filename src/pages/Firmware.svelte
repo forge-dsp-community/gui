@@ -348,7 +348,7 @@
           <label class="check"><input type="checkbox" bind:checked={understood} disabled={running} /> {t("firmware.notesReadImageRight")}</label>
         {/if}
         {#if isAndroid()}<p class={running ? "fgwarn" : "muted small"}>{t("firmware.androidStayForeground")}</p>{/if}
-        <div><button class="primary" disabled={running || blocked || (needsTick && !understood) || !!boot?.read} onclick={start}>{t("firmware.startUpdate")}</button></div>
+        <div><button class="primary" disabled={running || blocked || (needsTick && !understood) || !!boot?.read || (!boot && app.status !== "online")} onclick={start}>{t("firmware.startUpdate")}</button></div>
       {/if}
     {/if}
 
