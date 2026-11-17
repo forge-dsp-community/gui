@@ -72,6 +72,7 @@ export async function readDevice(
   const state = emptyState();
   const steps = [...STEPS];
   const skipped: { reg: string; port?: boolean; slow?: boolean }[] = [];
+  let portRefused = false;   // original firmware: it answered "unknown command"
   for (let i = 0; i < steps.length; i++) {
     const { reg, port } = steps[i];
     onProgress({ done: i, total: steps.length, current: reg });
@@ -91,9 +92,10 @@ export async function readDevice(
     const ident = reg === "system.firmware" || reg === "system.firmware.port";
     for (let t = 0; t < (ident ? 3 : 2) && !answers; t++) {
       try {
-        answers = await client.get(reg, ident ? { timeoutMs: 4000 } : undefined);
+        answers = await client.get(reg);
       } catch { /* no answer */ }
     }
+    if (reg === "system.firmware.port" && answers?.some((a) => a.kind === "error")) portRefused = true;
     if (!answers) continue;  // optional register
     for (const a of answers) {
       applyAnswer(state, a);
@@ -104,9 +106,9 @@ export async function readDevice(
   // the port identity got lost while connecting (the Android service and the GUI set the rate at the same
   // time; #42): asked once more at the end, and when it is a port firmware after all, the port registers
   // that were left out are read now
-  if (state.identity.port === null && skipped.length && state.identity.firmware) {
+  if (state.identity.port === null && skipped.length && state.identity.firmware && !portRefused) {
     for (let t = 0; t < 2 && state.identity.port === null; t++) {
-      const a = await client.get("system.firmware.port", { timeoutMs: 4000 }).catch(() => null);
+      const a = await client.get("system.firmware.port").catch(() => null);
       if (a?.some((x) => x.kind === "error")) break;   // original firmware: right to skip them
       for (const x of a ?? []) applyAnswer(state, x);
     }
