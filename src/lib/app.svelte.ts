@@ -81,6 +81,22 @@ function attach(t: Transport) {
     if (a.kind === "event" && a.register === "preset.loaded") presetLoaded();
   });
   app.transportName = t.name;
+  // #34: unplugged, switched off, bridge restarted: offline instead of a frozen "online"
+  t.onClose?.((why) => { if (transport === t) void connectionLost(why); });
+}
+
+let lastKind: "usb" | "esp" | "demo" | "sim" | null = null;
+async function connectionLost(why: string) {
+  const kind = lastKind;
+  await disconnect();
+  app.error = t("app.connectionLost", { why });
+  // the ESP32 bridge comes back by itself after a restart: try again for a minute
+  // (USB: the Android app connects on the attach event, the browser on the next click)
+  if (kind === "esp")
+    for (let i = 0; i < 12 && app.status === "offline" && !transport; i++) {
+      await sleep(5000);
+      if (app.status === "offline" && !transport) await connect("esp");
+    }
 }
 
 // --- USB: Web Serial in the browser, the app's own serial port in the desktop app ----------------------
@@ -111,6 +127,7 @@ export async function findSim() {
 
 export async function connect(kind: "usb" | "esp" | "demo" | "sim") {
   app.error = "";
+  lastKind = kind;
   app.status = "connecting";
   try {
     if (kind === "demo") {
@@ -379,6 +396,8 @@ export async function recoverRate() {
     } else {
       await tr.setBaud(now);   // not there either (busy, or switched off): stay
     }
+  } catch {
+    /* #34: the port went away meanwhile; its onClose reports it */
   } finally {
     recovering = false;
   }

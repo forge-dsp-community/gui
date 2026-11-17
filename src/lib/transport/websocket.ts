@@ -13,16 +13,26 @@ export function openWebSocket(url = defaultBridgeUrl()): Promise<Transport> {
   return new Promise((resolve, reject) => {
     const ws = new WebSocket(url);
     const listeners: ((l: string) => void)[] = [];
+    const closed: ((why: string) => void)[] = [];
+    let closing = false, opened = false;
+    // #34: the bridge restarted or the Wi-Fi went away; before the open it is a failed connect
+    ws.onclose = (e) => { if (opened && !closing) closed.forEach((f) => f(`WebSocket closed (${e.code})`)); };
     const split = new LineSplitter((l) => listeners.forEach((f) => f(l)));
     ws.onmessage = (e) => split.push(typeof e.data === "string" ? e.data : "");
     ws.onerror = () => reject(new Error(`WebSocket ${url} failed`));
-    ws.onopen = () =>
+    ws.onopen = () => {
+      opened = true;
       resolve({
         name: "ESP32",
-        write: async (line) => ws.send(line),
+        write: async (line) => {
+          if (ws.readyState !== WebSocket.OPEN) throw new Error("WebSocket closed");
+          ws.send(line);
+        },
         onLine: (fn) => listeners.push(fn),
-        close: async () => ws.close(),
+        onClose: (fn) => closed.push(fn),
+        close: async () => { closing = true; ws.close(); },
       });
+    };
   });
 }
 

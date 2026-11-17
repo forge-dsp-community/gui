@@ -48,6 +48,8 @@ let onData: ((b: Uint8Array) => void) | null = null;
 let attached: (() => void) | null = null;
 /** the Forge was plugged in (USB_DEVICE_ATTACHED) */
 export function onAndroidAttached(fn: () => void) { attached = fn; }
+/** listeners of the open transport for "the Forge was unplugged" (#34) */
+const goneFns: ((why: string) => void)[] = [];
 
 const toB64 = (b: Uint8Array) => { let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
 const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -56,7 +58,7 @@ if (typeof window !== "undefined")
   (window as unknown as { __forgeAndroid: unknown }).__forgeAndroid = {
     data: (b64: string) => onData?.(fromB64(b64)),
     attached: () => attached?.(),
-    gone: () => {},   // the requests then go unanswered; the app finds the rate/port again (as with Web Serial)
+    gone: () => { const f = [...goneFns]; goneFns.length = 0; f.forEach((x) => x("Forge unplugged")); },   // #34
     settle: (id: number, err: string) => { waiting.get(id)?.(err); waiting.delete(id); },
   };
 
@@ -82,6 +84,7 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
     name: "USB (Android)",
     write: async (line) => b.write(toB64(new TextEncoder().encode(line))),
     onLine: (fn) => listeners.push(fn),
+    onClose: (fn) => goneFns.push(fn),
     bytes: { write: async (d) => b.writeRaw(toB64(d)), read: (ms) => queue.read(ms), flush: () => queue.flush() },
     async setBaud(r) { queue.flush(); b.setBaud(r); },
     async close() { onData = null; b.close(); },

@@ -1204,6 +1204,7 @@ export const DE = {
   "factory.restoreSupply": "Versorgungs-Kalibrierung wieder eintragen",
   "factory.restored": "Versorgungs-Kalibrierung wieder eingetragen.",
   "factory.close": "Schließen",
+  "app.connectionLost": "Verbindung zum Forge verloren ({why}). Wieder anstecken bzw. einschalten und neu verbinden.",
 } as const;
 
 export type Key = keyof typeof DE;

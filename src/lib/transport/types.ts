@@ -8,6 +8,8 @@ export interface Transport {
   bytes?: ByteLink;
   /** reopen the port at another rate (USB only; the Forge switches with system.baud.usb, #62) */
   setBaud?(baud: number): Promise<void>;
+  /** the connection went away on its own (unplugged, bridge restarted, Wi-Fi lost; not after close()) (#34) */
+  onClose?(fn: (why: string) => void): void;
 }
 
 /** raw byte access (see lib/boot/client.ts) */

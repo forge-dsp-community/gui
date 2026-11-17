@@ -38,6 +38,7 @@ export async function openWebSerial(baudRate = 38400, chosen?: SerialPortLike): 
   let reader: ReadableStreamDefaultReader<Uint8Array>, writer: WritableStreamDefaultWriter<Uint8Array>;
   let loop: Promise<void> = Promise.resolve();
   let open = false;
+  const closed: ((why: string) => void)[] = [];
   async function start(baud: number) {
     await port.open({ baudRate: baud, dataBits: 8, stopBits: 1, parity: "none" });
     lastIds = port.getInfo?.() ?? null;
@@ -47,13 +48,19 @@ export async function openWebSerial(baudRate = 38400, chosen?: SerialPortLike): 
     const r = reader;
     loop = (async () => {
       const dec = new TextDecoder();
+      let why = "";
       while (open) {
-        const { value, done } = await r.read().catch(() => ({ value: undefined, done: true }));
+        const { value, done } = await r.read().catch((e) => { why = String(e?.message ?? e); return { value: undefined, done: true }; });
         if (done) break;
         if (value) {
           queue.push(value);
           split.push(dec.decode(value, { stream: true }));
         }
+      }
+      // #34: the loop ended without stop() (port removed, Forge switched off): report it
+      if (open) {
+        open = false;
+        closed.forEach((f) => f(why || "port closed"));
       }
     })();
   }
@@ -72,6 +79,7 @@ export async function openWebSerial(baudRate = 38400, chosen?: SerialPortLike): 
     onLine: (fn) => listeners.push(fn),
     bytes: { write: (data) => writer.write(data), read: (ms) => queue.read(ms), flush: () => queue.flush() },
     async setBaud(baud) { await stop(); queue.flush(); await start(baud); },
+    onClose: (fn) => closed.push(fn),
     close: stop,
   };
 }

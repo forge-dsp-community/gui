@@ -1204,4 +1204,5 @@ export const EN: Record<Key, string> = {
   "factory.restoreSupply": "Write the supply calibration back",
   "factory.restored": "Supply calibration written back.",
   "factory.close": "Close",
+  "app.connectionLost": "Connection to the Forge lost ({why}). Plug it in or switch it on again and reconnect.",
 };
