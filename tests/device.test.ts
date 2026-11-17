@@ -124,7 +124,7 @@ describe("readDevice", () => {
     expect(inputDelayGroup(s)).toBeNull();                              // the 96LN has no input delays
     expect(delayGroups(s).map((g) => g.channels)).toEqual([[1, 2, 3, 4], [5, 6, 7, 8]]);
     expect(Object.keys(s.biquads).length).toBeGreaterThan(0);
-  });
+  }, 15000);   // many registers the 96LN does not answer, each asked twice
 
   it("original firmware: port registers are not asked after the first refusal", async () => {
     const portOnly = /system\.firmware\.port|key\.info\.list|mixer\.in|biquad\.clickless|system\.supply|system\.limits|system\.channel\.in|system\.vu/;
