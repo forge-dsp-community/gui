@@ -40,7 +40,10 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
                 ForgeService.start(act)
                 val s = withTimeoutOrNull(5000) { while (act.service == null) delay(50); act.service }
                     ?: throw IllegalStateException("service not available")
-                s.attachGui(
+                // an activity on its way out (recreated after the USB permission dialog) does not take the
+                // line from the new one (#42)
+                if (act.isFinishing || act.isDestroyed || MainActivity.current !== act) throw IllegalStateException("activity closed")
+                s.attachGui(this@Bridge,
                     onData = { b -> js("window.__forgeAndroid&&__forgeAndroid.data('${Base64.encodeToString(b, Base64.NO_WRAP)}')") },
                     onGone = { js("window.__forgeAndroid&&__forgeAndroid.gone()") })
                 // the service connects first (handshake, fast rate); the GUI then talks through it.
@@ -70,7 +73,7 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
 
     /** the GUI lets go; the service keeps the connection */
     @JavascriptInterface
-    fun close() { svc?.detachGui() }
+    fun close() { svc?.detachGui(this) }
 
     @JavascriptInterface
     fun save(id: Int, b64: String, name: String, mime: String) {

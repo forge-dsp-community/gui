@@ -71,8 +71,14 @@ class MainActivity : ComponentActivity() {
     }
 
     @SuppressLint("SetJavaScriptEnabled")
+    companion object {
+        /** the activity created last: only its GUI talks to the Forge (gui-ng#42) */
+        @Volatile var current: MainActivity? = null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        current = this
         // test rig (android/test-rig): debug builds can be driven over the Chrome DevTools protocol
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
         web = WebView(this)
@@ -152,6 +158,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (current === this) current = null
         bridge.shutdown()
         runCatching { unbindService(conn) }
         web.destroy()

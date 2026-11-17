@@ -262,13 +262,22 @@ class ForgeService : Service() {
     }
 
     // --- GUI ------------------------------------------------------------------------------------------
-    fun attachGui(onData: (ByteArray) -> Unit, onGone: () -> Unit) {
+    /** the bridge of the activity the GUI runs in; only it detaches again (gui-ng#42: after the USB
+     *  permission dialog Android recreates the activity, the old one attached late or detached in its
+     *  onDestroy and took the lines away from the new page) */
+    @Volatile private var guiOwner: Any? = null
+    fun attachGui(owner: Any, onData: (ByteArray) -> Unit, onGone: () -> Unit) {
+        android.util.Log.i("ForgeSvc", "attach gui ${owner.hashCode()}")
+        guiOwner = owner
         gui = onData
         guiGone = onGone
         quiet = false
         connect()
     }
-    fun detachGui() {
+    fun detachGui(owner: Any) {
+        if (guiOwner !== owner) return
+        android.util.Log.i("ForgeSvc", "detach gui ${owner.hashCode()}")
+        guiOwner = null
         gui = null
         guiGone = null
         quiet = false
