@@ -451,6 +451,7 @@ export const DE = {
   "firmware.startUpdate": "Update starten",
   "firmware.backupBeforeUpdateN": "Sicherung vor dem Update ({n} Bytes), bleibt bis zum Verlassen der Seite:",
   "firmware.saveBackupAfterUpdate": "Während des Updates öffnet die App keinen Speichern-Dialog (das würde das Update unterbrechen). Bitte die Sicherung jetzt mit den Knöpfen speichern.",
+  "firmware.androidStayForeground": "Während des Updates die App im Vordergrund lassen: nicht in eine andere App wechseln, nicht den Startbildschirm aufrufen, das Gerät nicht sperren. Sonst bricht das Update ab und der Forge bleibt im Bootloader. Der Bildschirm bleibt dabei an.",
   "firmware.saveFlashBackup": "Flash-Sicherung speichern",
   "firmware.saveEEPROMBackup": "EEPROM-Sicherung speichern",
   "firmware.oldFirmwareNoLonger": "Die alte Firmware ist nicht mehr vollständig. Der Bootloader ist unverändert und wartet: USB stecken lassen, Gerät nicht ausschalten und „Update starten“ noch einmal drücken.",

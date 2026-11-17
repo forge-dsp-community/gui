@@ -117,5 +117,14 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
     @JavascriptInterface
     fun debuggable(): Boolean = act.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0
 
+    /** screen stays on (firmware update, gui-ng#41: screen off sends the app to the background) */
+    @JavascriptInterface
+    fun keepScreenOn(on: Boolean) {
+        act.runOnUiThread {
+            val f = android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            if (on) act.window.addFlags(f) else act.window.clearFlags(f)
+        }
+    }
+
     fun shutdown() = close()
 }

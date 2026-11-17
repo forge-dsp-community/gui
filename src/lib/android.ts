@@ -7,6 +7,7 @@
 //     settings(): JSON / setSettings(JSON): error / refreshMaster()    the background service (volume, autostart)
 //     save(id, base64, name, mime)        "save as" (Storage Access Framework); settle(id, error|"cancel")
 //     update(): JSON / checkUpdate() / installUpdate()   self-update from the GitHub releases
+//     keepScreenOn(on)                    screen stays on (firmware update, #41)
 //     debuggable(): boolean               debug build (android/test-rig drives the GUI through window.__forgeRig)
 //   window.__forgeAndroid  (this file)
 //     data(base64)                        received bytes
@@ -29,6 +30,7 @@ interface Bridge {
   checkUpdate?(): void;
   installUpdate?(): void;
   debuggable?(): boolean;
+  keepScreenOn?(on: boolean): void;
 }
 
 const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as unknown as { ForgeAndroid?: Bridge }).ForgeAndroid ?? null) : null);
@@ -37,6 +39,8 @@ const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as
 export const isAndroid = () => bridge() !== null;
 /** debug build of the app: the test rig (android/test-rig, #33) may drive the GUI */
 export const androidDebuggable = () => !!bridge()?.debuggable?.();
+/** screen stays on while true (no-op outside the app and with older apps) */
+export const androidKeepScreenOn = (on: boolean) => bridge()?.keepScreenOn?.(on);
 
 const waiting = new Map<number, (err: string) => void>();
 let nextId = 1;

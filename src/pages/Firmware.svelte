@@ -6,7 +6,7 @@
   import { backupInfo, freeSlot, isPort, parseScan, sdBackup, sdList, sdState, type BackupInfo } from "../lib/device";
   import { describeFlash } from "../lib/boot/identify";
   import { isNative } from "../lib/native";
-  import { isAndroid } from "../lib/android";
+  import { androidKeepScreenOn, isAndroid } from "../lib/android";
   import { openWebSerial } from "../lib/transport/webserial";
   import type { Transport } from "../lib/transport/types";
   import { APP_SIZE, imageKnows, runsPcb30 } from "../lib/boot/client";
@@ -174,6 +174,7 @@
       : t("firmware.writeFirmwareNameForge2", { name: file.name }) + "\n\n" + t("firmware.musicStopsMeanwhileDo");
     if (!confirm(msg)) return;
     running = true; steps = []; result = null; saved = null; sdNote = "";
+    androidKeepScreenOn(true);
     const name = (what: string) => `forge-${identity || "unbekannt"}-${what}-${day()}.bin`;
     try {
       if (original) {
@@ -236,6 +237,7 @@
     } finally {
       flow = null;
       running = false; app.exclusive = false;
+      androidKeepScreenOn(false);
     }
   }
   const pct = (s: { done?: number; total?: number }) => (s.total ? Math.round(((s.done ?? 0) / s.total) * 100) : null);
@@ -345,6 +347,7 @@
         {#if needsTick && !blocked}
           <label class="check"><input type="checkbox" bind:checked={understood} disabled={running} /> {t("firmware.notesReadImageRight")}</label>
         {/if}
+        {#if isAndroid()}<p class={running ? "fgwarn" : "muted small"}>{t("firmware.androidStayForeground")}</p>{/if}
         <div><button class="primary" disabled={running || blocked || (needsTick && !understood) || !!boot?.read} onclick={start}>{t("firmware.startUpdate")}</button></div>
       {/if}
     {/if}
@@ -425,6 +428,7 @@
   .warnt { color: var(--warn); }
   .ok { color: var(--ok); }
   .linkish { padding: .1rem .45rem; font-size: .8rem; }
+  .fgwarn { border-left: 3px solid var(--warn, #c77d00); padding: .4rem .7rem; font-weight: 600; }
   .saved { display: grid; gap: .35rem; border-top: 1px solid var(--line); padding-top: .6rem; }
   .saved .btns { display: flex; gap: .5rem; flex-wrap: wrap; }
   .result { border: 1px solid var(--line-strong); border-radius: 10px; padding: .6rem .8rem; display: grid; gap: .3rem; }

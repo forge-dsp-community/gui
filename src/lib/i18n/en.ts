@@ -451,6 +451,7 @@ export const EN: Record<Key, string> = {
   "firmware.startUpdate": "Start update",
   "firmware.backupBeforeUpdateN": "Backup before the update ({n} bytes), kept until you leave the page:",
   "firmware.saveBackupAfterUpdate": "The app opens no save dialog during the update (it would interrupt it). Please save the backup now with the buttons.",
+  "firmware.androidStayForeground": "Keep the app in the foreground during the update: do not switch to another app, go to the home screen or lock the device. Otherwise the update stops and the Forge stays in the bootloader. The screen stays on meanwhile.",
   "firmware.saveFlashBackup": "Save flash backup",
   "firmware.saveEEPROMBackup": "Save EEPROM backup",
   "firmware.oldFirmwareNoLonger": "The old firmware is no longer complete. The bootloader is unchanged and waits: leave USB plugged in, do not switch the device off and press \"Start update\" again.",
