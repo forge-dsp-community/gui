@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { sha256Hex } from "../lib/util/sha256";
   import { t, tx } from "../lib/i18n/index.svelte";
   import { explain } from "../lib/errors";
   import { saveFile } from "../lib/saveFile";
@@ -61,8 +62,7 @@
       const image = parseHex(await text());
       if (!image.length) throw new HexError(t("firmware.fileContainsNoData"));
       if (image.length > APP_SIZE) throw new HexError(t("firmware.imageLargerThanApplication2"));
-      const h = new Uint8Array(await crypto.subtle.digest("SHA-256", image as BufferSource));
-      file = { name, image, sha: [...h].map((b) => b.toString(16).padStart(2, "0")).join("") };
+      file = { name, image, sha: await sha256Hex(image) };
     } catch (x) {
       fileError = x instanceof Error ? x.message : String(x);
     }

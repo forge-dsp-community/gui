@@ -1,3 +1,4 @@
+import { sha256Hex } from "../util/sha256";
 import { t } from "../i18n/index.svelte";
 import { isNative, nativeGet } from "../native";
 import { isAndroid } from "../android";
@@ -95,7 +96,6 @@ export function assetsFor(rel: Release, model: string, pcb: string, hasClock: bo
   return want.flatMap(of);
 }
 
-const hex = (b: Uint8Array) => [...b].map((x) => x.toString(16).padStart(2, "0")).join("");
 
 /** load an asset from next to the page (desktop app: from GitHub) and check it against the index -> the .hex text */
 export async function fetchAsset(rel: Release, a: ReleaseAsset, base = RELEASE_BASE, get: typeof fetch = fetch): Promise<string> {
@@ -107,7 +107,7 @@ export async function fetchAsset(rel: Release, a: ReleaseAsset, base = RELEASE_B
     if (!r.ok) throw new Error(`${a.file}: HTTP ${r.status}`);
     bytes = new Uint8Array(await r.arrayBuffer());
   }
-  const sha = hex(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes as BufferSource)));
+  const sha = await sha256Hex(bytes);
   if (bytes.length !== a.size || (a.sha256 && sha !== a.sha256)) throw new Error(`${a.file}: ${t("firmware.checksumDoesNotMatch")}`);
   return new TextDecoder().decode(bytes);
 }
