@@ -57,8 +57,10 @@
     app.exclusive = true;
     androidKeepScreenOn(true);
     try {
-      const r = await writeOnce("system.reinit", 1);
-      if (r) { err = r; phase = "confirm"; return; }
+      // a slow line answers late (seen in the Android VM after 1.5 s): wait longer; without an answer
+      // the reset may run all the same, so only an error answer (older firmware) stops here
+      const r = await writeOnce("system.reinit", 1, 8000);
+      if (r && !/timeout|answer|antwort/i.test(r)) { err = r; phase = "confirm"; return; }
       // the Forge resets, erases and resets again (about 90 s); it answers again when through, at
       // 38400 Bd after its restart: the port is not exclusive meanwhile and the rate is checked each
       // round (the Android service may have switched to the fast rate between the two restarts)

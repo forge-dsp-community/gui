@@ -662,10 +662,10 @@ export async function query(reg: string): Promise<Answer[]> {
 }
 
 /** one write that is not a model value (diagnostics); returns the error text or "" */
-export async function writeOnce(reg: string, value: Value): Promise<string> {
+export async function writeOnce(reg: string, value: Value, timeoutMs?: number): Promise<string> {
   if (!client) return t("common.notConnected");
   try {
-    const r = await client.set(reg, value, { checksum: true });
+    const r = await client.set(reg, value, { checksum: true, ...(timeoutMs ? { timeoutMs } : {}) });
     const bad = r.find((a) => a.kind === "error");
     return bad ? deviceError(bad) : "";
   } catch (e) {
