@@ -81,6 +81,10 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: app
     runs-on: ubuntu-latest
+    # #38: shares the group with the apk job of android.yml, SHA256SUMS is read, merged and written in turn
+    concurrency:
+      group: release-${{ github.ref_name }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4   # release notes from docs/releases
       - uses: actions/download-artifact@v4

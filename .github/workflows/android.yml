@@ -13,6 +13,10 @@ permissions:
 jobs:
   apk:
     runs-on: ubuntu-24.04
+    # #38: one release job per tag at a time, across workflows (desktop.yml writes SHA256SUMS as well)
+    concurrency:
+      group: ${{ startsWith(github.ref, 'refs/tags/v') && format('release-{0}', github.ref_name) || format('android-{0}', github.run_id) }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
         with:

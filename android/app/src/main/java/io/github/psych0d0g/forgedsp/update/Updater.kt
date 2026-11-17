@@ -125,13 +125,16 @@ object Updater {
                         }
                     }
                 }
-                // SHA256SUMS of the release, if it lists the APK (the signature is checked by Android anyway)
+                // SHA256SUMS of the release must list the APK and match (#38: a missing line was skipped silently;
+                // the signature check of Android stays in addition)
                 val sum = md.digest().joinToString("") { "%02x".format(it) }
-                sumsUrl?.let { u ->
-                    val name = url.substringAfterLast('/')
-                    val line = runCatching { get(u).bufferedReader().use { it.readText() } }.getOrNull()?.lines()?.firstOrNull { it.trim().endsWith(name) }
-                    if (line != null && !line.startsWith(sum)) throw IllegalStateException("checksum does not match")
-                }
+                val u = sumsUrl ?: throw IllegalStateException("the release has no SHA256SUMS")
+                val name = url.substringAfterLast('/')
+                val text = runCatching { get(u).bufferedReader().use { it.readText() } }.getOrNull()
+                    ?: throw IllegalStateException("SHA256SUMS of the release could not be loaded")
+                val line = text.lines().firstOrNull { it.trim().split(Regex("""\s+""")).lastOrNull()?.removePrefix("*") == name }
+                    ?: throw IllegalStateException("SHA256SUMS of the release does not list $name")
+                if (!line.trim().startsWith(sum)) throw IllegalStateException("checksum does not match")
                 state = State.INSTALLING
                 commit(app, f)
             }.onFailure { fail(it) }
