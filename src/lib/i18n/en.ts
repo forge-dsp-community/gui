@@ -1213,7 +1213,7 @@ export const EN: Record<Key, string> = {
   "spdif.dsp": "Signal after the DSP",
   "spdif.dspHint": "The output carries outputs 7/8 with mixer, filters, EQ, delay and level. Signal detection then reports only the selected input.",
   "spdif.refused": "The Forge refuses: {err} (needed: firmware 2.7 or newer, second S/PDIF chip, four channel option off).",
-  "spdif.hwJumper": "Hardware: a 3.3 V transmitter module at optical port 2 (TOTX147PL instead of the receiver TORX147PL fitted at the factory) and JP1 bridges 1–2, 3–5, 7–8; never also 1–3 or 5–7 (short circuit).",
+  "spdif.hwJumper": "Hardware: a 3.3 V transmitter module at optical port 2 (TOTX147PL instead of the receiver TORX147PL fitted at the factory) and the solder jumper “sec.spdif” (JP1) on “O” (bridges 1–2, 3–5, 7–8; factory setting “I”); never also 1–3 or 5–7 (short circuit).",
   "spdif.outs": "Outputs 7/8 are now called “S/PDIF L/R” (own names take precedence). The mixer decides what arrives there.",
   "spdif.mute": "Muting outputs 7/8 acts in the D/A converter and thus not on S/PDIF; pull the level down instead.",
   "spdif.cores": "The signal path includes the input DSP (mixer, two filter chains) and of the third DSP only channels 7/8. Its filter places can be moved to 7/8.",
