@@ -6,6 +6,7 @@
   import { app, sendModc, writeOnce } from "../lib/app.svelte";
   import { availableTypes, copyModc, decodeStartup, deviceHasChip, emptyModc, eventOptions, isPort, modcType, type Modc } from "../lib/device";
   import ModcFields from "../components/ModcFields.svelte";
+  import FactoryReset from "../components/FactoryReset.svelte";
 
   const d = $derived(app.device);
   const total = $derived(d.identity.modcBlocks || 32);
@@ -165,6 +166,9 @@
     {/if}
   </section>
 {/each}
+
+<!-- forge-dsp-firmware#81: system.reinit in every port build from 2.6.2 (older ones answer "unknown command") -->
+{#if isPort(d)}<FactoryReset />{/if}
 
 <style>
   .head { margin-bottom: 1rem; }
