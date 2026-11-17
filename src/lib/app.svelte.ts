@@ -163,6 +163,7 @@ export async function connect(kind: "usb" | "esp" | "demo" | "sim") {
       }
       app.status = "reading";
       app.device = await readDevice(client!, (p) => (app.progress = p));
+      await ensureIdentity();
       await readMaster();
       app.progress = null;
       if (!app.device.identity.keyInfo && !app.device.identity.firmware) throw new Error(t("app.noForgeAnswers"));
@@ -212,11 +213,31 @@ async function reloadQuiet() {
   }
 }
 
+/**
+ * The identity decides which pages and functions the GUI offers (port firmware or original). A slow
+ * line (Android VM, a Forge busy after a restart) can answer it only after the read moved on; the
+ * answer then went to the replaced state. Asked again with more time when it is missing (#40).
+ */
+async function ensureIdentity() {
+  const c = client;
+  if (!c) return;
+  for (const reg of ["system.firmware", "system.firmware.port"]) {
+    const have = reg === "system.firmware" ? app.device.identity.firmware : app.device.identity.port;
+    if (have) continue;
+    for (let i = 0; i < 2; i++) {
+      const r = await c.get(reg, { timeoutMs: 4000 }).catch(() => []);
+      for (const a of r) applyAnswer(app.device, a);
+      if (r.some((a) => a.kind === "get" || a.kind === "error")) break;
+    }
+  }
+}
+
 export async function reload() {
   if (!client || app.demo) return;
   app.bootloader = null;   // a firmware runs again (after an update)
   app.status = "reading";
   app.device = await readDevice(client, (p) => (app.progress = p));
+  await ensureIdentity();
   await readMaster();
   app.progress = null;
   app.status = "online";
