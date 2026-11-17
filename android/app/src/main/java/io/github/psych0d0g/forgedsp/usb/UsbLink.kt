@@ -56,10 +56,17 @@ class UsbLink private constructor(private val port: UsbSerialPort, private val o
     companion object {
         private const val ACTION = "io.github.psych0d0g.forgedsp.USB_PERMISSION"
 
-        /** the first USB-serial device that a driver knows (the Forge: CP2102) */
+        /** the USB-serial bridge of the Forge (CP2102, as in res/xml/device_filter.xml) */
+        const val VID = 0x10C4
+        const val PID = 0xEA60
+        fun isForge(d: UsbDevice) = d.vendorId == VID && d.productId == PID
+
+        /** the Forge's CP2102 and only it (#37): a head unit has other USB-serial adapters as well (the IBUS
+         *  interface 1a86:7523 of the car, GNSS, ...); falling back to one of them would write Forge commands
+         *  into it, e.g. into the IBUS while the Forge is unplugged */
         fun find(ctx: Context): UsbSerialDriver? {
             val um = ctx.getSystemService(Context.USB_SERVICE) as UsbManager
-            return UsbSerialProber.getDefaultProber().findAllDrivers(um).firstOrNull()
+            return UsbSerialProber.getDefaultProber().findAllDrivers(um).firstOrNull { isForge(it.device) }
         }
 
         /** asks for the permission if needed; false = refused */
