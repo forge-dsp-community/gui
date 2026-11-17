@@ -1205,6 +1205,7 @@ export const DE = {
   "factory.restored": "Versorgungs-Kalibrierung wieder eingetragen.",
   "factory.close": "Schließen",
   "app.connectionLost": "Verbindung zum Forge verloren ({why}). Wieder anstecken bzw. einschalten und neu verbinden.",
+  "boot.commandRefused": "Der Bootloader lehnt Befehl {cmd} ab",
   "spdif.title": "S/PDIF-Ausgang",
   "spdif.intro": "Der optische Port 2 kann als S/PDIF-Ausgang dienen (Jumper JP1 und Sendermodul). Er gibt aus, was der zweite S/PDIF-Baustein wählt.",
   "spdif.scan": "Eingänge abtasten (Standard)",

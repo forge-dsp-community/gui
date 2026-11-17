@@ -182,9 +182,14 @@ export function parseKeyInfo(key: string): { model: string; pcb: string } {
   return m ? { model: m[1], pcb: m[2] } : { model: "", pcb: "" };
 }
 
+/** the largest channel or slot index a single answer may set (#39: no holes far behind the list) */
+const MAX_INDEX = 64;
 function setIndexed(list: number[], index: number, v: Value | undefined) {
   const n = num(v);
-  if (n !== null && index >= 1) list[index - 1] = n;
+  if (n === null || index < 1 || index > MAX_INDEX) return;
+  // an answer out of order (e.g. .3 before .2): fill up to it with 0, the missing ones follow
+  while (list.length < index - 1) list.push(0);
+  list[index - 1] = n;
 }
 
 /**

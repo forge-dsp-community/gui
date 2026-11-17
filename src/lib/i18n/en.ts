@@ -1205,6 +1205,7 @@ export const EN: Record<Key, string> = {
   "factory.restored": "Supply calibration written back.",
   "factory.close": "Close",
   "app.connectionLost": "Connection to the Forge lost ({why}). Plug it in or switch it on again and reconnect.",
+  "boot.commandRefused": "The bootloader refuses command {cmd}",
   "spdif.title": "S/PDIF output",
   "spdif.intro": "The optical port 2 can serve as S/PDIF output (jumper JP1 and a transmitter module). It sends what the second S/PDIF chip selects.",
   "spdif.scan": "Scan the inputs (default)",

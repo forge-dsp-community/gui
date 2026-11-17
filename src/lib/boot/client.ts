@@ -64,7 +64,7 @@ export class Bootloader {
     if (ans.length === 2 && ans[0] === 0x65 && ans[1] === 0x30) throw new TargetCrcError(t("firmware.bootloaderReportsTransmissionError"));  // "e0"
     if (!ans.length) throw new BootError(t("firmware.emptyAnswer"));
     if (ans[0] === (cmd | OK_BIT)) return ans;
-    if (ans[0] === cmd) throw new Refused(`Befehl 0x${cmd.toString(16)} abgelehnt`);
+    if (ans[0] === cmd) throw new Refused(t("boot.commandRefused", { cmd: `0x${cmd.toString(16)}` }));
     throw new BootError(t("firmware.unexpectedAnswer0xCmd", { cmd: cmd.toString(16) }));
   }
 

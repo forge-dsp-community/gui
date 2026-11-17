@@ -12,6 +12,9 @@ export class SimTarget implements ByteLink {
   dropAnswer = 0;
   /** autobaud bursts to ignore first (the application is still shutting down) */
   deaf = 0;
+  /** answer delay in ms (#39: with 2 ms the autobaud and retry intervals of the client tested nothing) */
+  latencyMs = 0;
+  private readyAt = 0;
   private out: number[] = [];
   private dec = new FrameDecoder();
   private command = false;
@@ -31,11 +34,16 @@ export class SimTarget implements ByteLink {
     }
     if (!this.command && data.every((c) => c === AUTOBAUD_CHAR) && !this.started) {
       if (this.deaf > 0) this.deaf--;
-      else { this.command = true; this.out.push(...IDENTIFIER); }
+      else { this.command = true; this.out.push(...IDENTIFIER); this.readyAt = Date.now() + this.latencyMs; }
     }
   }
   async read(timeoutMs: number) {
     if (!this.out.length) await new Promise((r) => setTimeout(r, Math.min(timeoutMs, 2)));
+    const wait = this.readyAt - Date.now();
+    if (this.out.length && wait > 0) {
+      await new Promise((r) => setTimeout(r, Math.min(timeoutMs, wait)));
+      if (Date.now() < this.readyAt) return new Uint8Array();   // not there yet within this read
+    }
     const d = Uint8Array.from(this.out);
     this.out = [];
     return d;
@@ -45,6 +53,7 @@ export class SimTarget implements ByteLink {
   private answer(payload: number[]) {
     if (++this.frames === this.dropAnswer) return;
     this.out.push(...encodeFrame(payload));
+    this.readyAt = Date.now() + this.latencyMs;
   }
   private handle(p: Uint8Array) {
     const cmd = p[0], ok = cmd | OK_BIT;

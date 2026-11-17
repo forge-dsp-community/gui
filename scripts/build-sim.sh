@@ -4,7 +4,8 @@
 # Writes OUT_DIR/forge-sim-<flavour>.mjs and OUT_DIR/index.json. Needs git, make and a network;
 # installs emsdk (pinned) into $EMSDK_DIR (default ~/.cache/emsdk) unless emcc is already there.
 set -euo pipefail
-OUT=$(realpath -m "$1"); FLAVOURS=${2:-}; REF=${3:-main}
+# #39: pinned to a firmware tag, so a protocol change on its main branch does not change the GUI tests
+OUT=$(realpath -m "$1"); FLAVOURS=${2:-}; REF=${3:-v2.7.0-beta.1}
 EMSDK_VERSION=6.0.13
 REPO=https://github.com/psych0d0g/forge-dsp-firmware.git
 EMSDK_DIR=${EMSDK_DIR:-$HOME/.cache/emsdk}

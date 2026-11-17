@@ -133,3 +133,18 @@ describe("lines left over from before do not shift the answers", () => {
     expect(b[0].kind).toBe("info");
   });
 });
+
+import { getLine as _getLine, setLine as _setLine, setLineRaw as _setLineRaw, encodeValue as _encodeValue, LineTooLong, MAX_LINE } from "../src/lib/protocol/request";
+describe("line limits (#39)", () => {
+  it("a line of at most 127 bytes including CR LF passes, a longer one is refused", () => {
+    const fit = "x".repeat(MAX_LINE - "set.1 system.channel.name.1=\"\"\r\n".length);
+    expect(_setLine("system.channel.name.1", fit).length).toBe(MAX_LINE);
+    expect(() => _setLine("system.channel.name.1", fit + "x")).toThrow(LineTooLong);
+    expect(() => _setLineRaw("biquad.1.1", "[" + "1,".repeat(70) + "1]")).toThrow(LineTooLong);
+    expect(_getLine("system.firmware")).toBe("get.1 system.firmware\r\n");
+  });
+  it("a quote inside a string value is refused", () => {
+    expect(() => _encodeValue('a"b')).toThrow();
+    expect(_encodeValue("ab")).toBe('"ab"');
+  });
+});

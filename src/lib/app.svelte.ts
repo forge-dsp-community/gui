@@ -264,7 +264,9 @@ export async function loadPreset(n: number): Promise<string> {
   if (!client) return t("common.notConnected");
   app.exclusive = true;
   try {
-    const done = new Promise<void>((r) => { presetWait = r; setTimeout(r, 30000); });   // older firmware: no event
+    let fallback: ReturnType<typeof setTimeout> | undefined;
+    const done = new Promise<void>((r) => { presetWait = r; fallback = setTimeout(r, 30000); })   // older firmware: no event
+      .finally(() => clearTimeout(fallback));   // #39: the 30 s fallback timer is not left behind
     const err = await writeOnce("preset.loaded", n);
     if (err) return err;
     app.device.preset.loaded = n;   // the demo reads nothing back; on a device the read below confirms it

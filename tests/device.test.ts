@@ -154,6 +154,15 @@ describe("readDevice", () => {
 });
 
 describe("applyAnswer", () => {
+  it("an indexed answer far out of range is ignored, one out of order leaves no holes (#39)", () => {
+    const s = emptyState();
+    const ap = (l: string) => applyAnswer(s, parseAnswer(l)!);
+    s.mute = [];
+    ap(" <.1 mute.out.3=1");
+    expect(s.mute).toEqual([0, 0, 1]);
+    ap(" <.1 mute.out.9999=1");
+    expect(s.mute.length).toBe(3);
+  });
   it("keeps input and output levels apart (forge-dsp-firmware#52)", () => {
     const s = emptyState();
     const ap = (l: string) => applyAnswer(s, parseAnswer(l)!);
