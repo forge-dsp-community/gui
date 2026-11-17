@@ -179,10 +179,16 @@ class ForgeService : Service() {
 
     /** the GUI lost the line (gui-ng#42): the service finds the rate again; it alone switches the rate
      *  in the app (the GUI switching it as well while the service connected left both sides apart) */
+    @Volatile private var lastRecover = 0L
     fun recover() {
         scope.launch {
             connectLock.withLock {
                 if (link == null || quiet) return@withLock
+                // the line works (bytes in the last 3 s), the service is connecting anyway, or it just did:
+                // a handshake would only set the status back (T02 waited for ONLINE)
+                val now = System.currentTimeMillis()
+                if (status == Status.CONNECTING || status == Status.SEARCHING || now - lastLine < 3000 || now - lastRecover < 10000) return@withLock
+                lastRecover = now
                 setStatus(Status.CONNECTING)
                 handshake()
             }

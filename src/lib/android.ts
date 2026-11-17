@@ -50,6 +50,8 @@ export const androidRecover = () => { const b = bridge(); if (!b?.recover) retur
 const waiting = new Map<number, (err: string) => void>();
 let nextId = 1;
 let onData: ((b: Uint8Array) => void) | null = null;
+let lastGot = 0;
+let hurry = () => {};
 let attached: (() => void) | null = null;
 /** the Forge was plugged in (USB_DEVICE_ATTACHED) */
 export function onAndroidAttached(fn: () => void) { attached = fn; }
@@ -57,14 +59,15 @@ export function onAndroidAttached(fn: () => void) { attached = fn; }
 const goneFns: ((why: string) => void)[] = [];
 
 /** #42: fetch what the app holds for the page; runs on the bridge thread of the app, not its UI thread */
-function pump() {
+function pump(): boolean {
   const b = bridge();
-  if (!b?.poll) return;
+  if (!b?.poll) return false;
   const fa = (window as unknown as { __forgeAndroid: Record<string, (...a: unknown[]) => void> }).__forgeAndroid;
   const s = b.poll();
   if (s) fa.data(s);
   const ev = b.pollEvents?.();
   if (ev && ev !== "[]") for (const [name, ...args] of JSON.parse(ev) as [string, ...unknown[]][]) if (name !== "kick") fa[name]?.(...args);
+  return !!s;
 }
 
 const toB64 = (b: Uint8Array) => { let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
@@ -104,10 +107,10 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
   onData = (bytes) => { queue.push(bytes); split.push(dec.decode(bytes, { stream: true })); };
   return {
     name: "USB (Android)",
-    write: async (line) => b.write(toB64(new TextEncoder().encode(line))),
+    write: async (line) => { b.write(toB64(new TextEncoder().encode(line))); hurry(); },
     onLine: (fn) => listeners.push(fn),
     onClose: (fn) => goneFns.push(fn),
-    bytes: { write: async (d) => b.writeRaw(toB64(d)), read: (ms) => queue.read(ms), flush: () => queue.flush() },
+    bytes: { write: async (d) => { b.writeRaw(toB64(d)); hurry(); }, read: (ms) => queue.read(ms), flush: () => queue.flush() },
     async setBaud(r) { queue.flush(); b.setBaud(r); },
     async close() { onData = null; b.close(); },
   };
@@ -165,4 +168,12 @@ export const checkAndroidUpdate = () => bridge()?.checkUpdate?.();
 export const installAndroidUpdate = () => bridge()?.installUpdate?.();
 
 // #42: the page fetches bytes and events itself (the UI thread of the app may hang in a slow frame)
-if (typeof window !== "undefined" && bridge()?.poll) { pump(); setInterval(pump, 15); }
+// every 15 ms while a transport is open and bytes came in the last second, else every 250 ms (an emulated
+// device spent noticeable time in the bridge calls)
+if (typeof window !== "undefined" && bridge()?.poll) {
+  const tick = () => { const got = pump(); if (got) lastGot = Date.now(); timer = setTimeout(tick, onData && Date.now() - lastGot < 1000 ? 15 : 250); };
+  // a write expects an answer: fetch quickly from now on
+  hurry = () => { lastGot = Date.now(); if (timer) clearTimeout(timer); timer = setTimeout(tick, 15); };
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  tick();
+}
