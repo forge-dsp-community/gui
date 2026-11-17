@@ -28,6 +28,7 @@ class UsbLink private constructor(private val port: UsbSerialPort, private val o
         private set
 
     fun setBaud(b: Int) {
+        android.util.Log.i("ForgeLink", "baud $b")
         port.setParameters(b, 8, UsbSerialPort.STOPBITS_1, UsbSerialPort.PARITY_NONE)
         baud = b
     }

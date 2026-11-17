@@ -191,6 +191,7 @@ class ForgeService : Service() {
 
     private suspend fun handshake() {
         val l = link ?: return
+        android.util.Log.i("ForgeSvc", "handshake at ${l.baud} quiet=$quiet")
         send("\r\n".toByteArray())
         // the Forge may be at the fast rate of an earlier session (back to 38400 after 30 s)
         var ok = ping()
@@ -231,6 +232,7 @@ class ForgeService : Service() {
     }
 
     private fun onGone() {
+        android.util.Log.i("ForgeSvc", "gone")
         link?.close()
         link = null
         keepalive?.cancel()
@@ -278,13 +280,16 @@ class ForgeService : Service() {
      *  and the update stopped ("bootloader no longer answers"). */
     fun guiWrite(data: ByteArray) {
         val text = String(data, Charsets.ISO_8859_1)
+        val wasQuiet = quiet
         val boot = Regex("""^\s*set\S*\s+system\.boot""").containsMatchIn(text)
         quiet = boot || (quiet && System.currentTimeMillis() - lastRaw < 3000)
+        if (quiet != wasQuiet) android.util.Log.i("ForgeSvc", "quiet $quiet (line)")
         send(data)
     }
     @Volatile private var lastRaw = 0L
     /** raw bytes of the GUI (bootloader): the service keeps quiet */
     fun guiWriteRaw(data: ByteArray) {
+        if (!quiet) android.util.Log.i("ForgeSvc", "quiet true (raw ${data.size} bytes)")
         quiet = true
         lastRaw = System.currentTimeMillis()
         send(data)
@@ -304,6 +309,7 @@ class ForgeService : Service() {
     fun offStatus(fn: (Status) -> Unit) { statusListeners.remove(fn) }
 
     private fun setStatus(s: Status) {
+        android.util.Log.i("ForgeSvc", "status $s quiet=$quiet gui=${gui != null}")
         status = s
         if (s != Status.ONLINE) volume?.onOffline()
         statusListeners.forEach { it(s) }
