@@ -28,7 +28,7 @@ import java.security.MessageDigest
  * updates go through without a question, since the app is then the installer of itself.
  */
 object Updater {
-    private const val API = "https://api.github.com/repos/psych0d0g/forge-dsp-gui-ng/releases/latest"
+    private const val API = "https://api.github.com/repos/forge-dsp-community/gui/releases/latest"
     private const val ACTION = "io.github.psych0d0g.forgedsp.action.INSTALLED"
     private const val PREFS = "update"
     private const val EVERY_MS = 6 * 3600_000L

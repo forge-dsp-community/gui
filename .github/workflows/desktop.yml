@@ -98,7 +98,7 @@ jobs:
         run: |
           cd out
           v="${GITHUB_REF_NAME#v}"
-          notes=(--notes "Desktop-App der Forge-DSP-GUI. Web: https://psych0d0g.github.io/forge-dsp-gui-ng/")
+          notes=(--notes "Desktop-App der Forge-DSP-GUI. Web: https://forge-dsp-community.github.io/gui/")
           [ -f "$GITHUB_WORKSPACE/docs/releases/$v.md" ] && notes=(--notes-file "$GITHUB_WORKSPACE/docs/releases/$v.md")
           gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "Forge DSP GUI $v" "${notes[@]}"

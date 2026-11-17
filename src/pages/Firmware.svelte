@@ -273,7 +273,7 @@
       </div>
     {/if}
     <p class="muted small">{t("firmware.firmwareFilesHexAt")}
-      <a href="https://github.com/psych0d0g/forge-dsp-firmware/releases" target="_blank" rel="noreferrer">forge-dsp-firmware/releases</a>.
+      <a href="https://github.com/forge-dsp-community/firmware/releases" target="_blank" rel="noreferrer">forge-dsp-firmware/releases</a>.
       {t("firmware.itAlsoSaysWhich")}</p>
   </section>
 

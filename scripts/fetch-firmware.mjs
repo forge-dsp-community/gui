@@ -8,7 +8,7 @@ import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const REPO = "psych0d0g/forge-dsp-firmware";
+const REPO = "forge-dsp-community/firmware";
 
 /** which releases are offered: the port releases (v1.2.3) and the original firmware (0.0.1116000) */
 export const wanted = (tag) => /^v\d+\.\d+\.\d+$/.test(tag) || tag === "0.0.1116000";

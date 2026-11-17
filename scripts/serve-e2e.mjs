@@ -13,7 +13,7 @@ createServer(async (req, res) => {
   if (path.includes("..")) { res.writeHead(400).end(); return; }
   if (path.endsWith("/")) path += "index.html";
   if (path === "/firmware/index.json") {   // the Pages build copies the firmware releases here: none in the tests
-    res.writeHead(200, { "Content-Type": TYPES[".json"] }).end(JSON.stringify({ format: 1, repo: "psych0d0g/forge-dsp-firmware", releases: [] }));
+    res.writeHead(200, { "Content-Type": TYPES[".json"] }).end(JSON.stringify({ format: 1, repo: "forge-dsp-community/firmware", releases: [] }));
     return;
   }
   const file = path.startsWith("/sim/") ? join("tests", path) : join("dist", path);

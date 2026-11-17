@@ -13,8 +13,8 @@ export interface Release {
 }
 
 // the Android app (#29) carries the page without the releases: from the Pages site (CORS allowed there)
-export const RELEASE_BASE = isAndroid() ? "https://psych0d0g.github.io/forge-dsp-gui-ng/firmware/" : "./firmware/";
-export const FIRMWARE_REPO = "psych0d0g/forge-dsp-firmware";
+export const RELEASE_BASE = isAndroid() ? "https://forge-dsp-community.github.io/gui/firmware/" : "./firmware/";
+export const FIRMWARE_REPO = "forge-dsp-community/firmware";
 
 interface ApiRelease { tag_name: string; name: string | null; published_at: string | null; draft: boolean; prerelease: boolean;
   html_url: string; assets: { name: string; size: number; digest?: string | null }[] }

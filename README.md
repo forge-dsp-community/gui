@@ -4,12 +4,12 @@ Neue Bedienoberfläche für **Forge DSP** und **ETON CORE D8** als Nachfolger de
 
 | Weg | Wie | Voraussetzung |
 |---|---|---|
-| **Browser, USB** | https://psych0d0g.github.io/forge-dsp-gui-ng/ → Web Serial → USB-COM des Forge (CP2102, 38400 8N1) | Chrome, Edge oder ein Firefox mit Web Serial; nichts zu installieren |
-| **Desktop-App, USB** | Dieselbe Oberfläche als Programm: [Releases](https://github.com/psych0d0g/forge-dsp-gui-ng/releases) (Windows msi oder portable exe, Linux deb, rpm, AppImage, Flatpak, macOS dmg). Dateien mit „Speichern unter“, serielle Anschlüsse direkt | nichts weiter; macOS beim ersten Start per Rechtsklick › Öffnen (unsigniert) |
-| **Android-App, USB** (#29, in Arbeit) | Für Android-Headunits (7", 1024×600): dieselbe Oberfläche, Startseite *Fahrzeug* mit großen Tasten (Preset, Lautstärke, Mute, Quelle, GALA, Status), Touch-Layout. Der Forge per USB am Headunit, die App startet beim Einstecken. APK aus den [Releases](https://github.com/psych0d0g/forge-dsp-gui-ng/releases) bzw. als Artefakt des Workflows `android` | Android 7 oder neuer mit USB-Host und aktueller System-WebView (Chrome 94+); Installation aus unbekannten Quellen erlauben |
+| **Browser, USB** | https://forge-dsp-community.github.io/gui/ → Web Serial → USB-COM des Forge (CP2102, 38400 8N1) | Chrome, Edge oder ein Firefox mit Web Serial; nichts zu installieren |
+| **Desktop-App, USB** | Dieselbe Oberfläche als Programm: [Releases](https://github.com/forge-dsp-community/gui/releases) (Windows msi oder portable exe, Linux deb, rpm, AppImage, Flatpak, macOS dmg). Dateien mit „Speichern unter“, serielle Anschlüsse direkt | nichts weiter; macOS beim ersten Start per Rechtsklick › Öffnen (unsigniert) |
+| **Android-App, USB** (#29, in Arbeit) | Für Android-Headunits (7", 1024×600): dieselbe Oberfläche, Startseite *Fahrzeug* mit großen Tasten (Preset, Lautstärke, Mute, Quelle, GALA, Status), Touch-Layout. Der Forge per USB am Headunit, die App startet beim Einstecken. APK aus den [Releases](https://github.com/forge-dsp-community/gui/releases) bzw. als Artefakt des Workflows `android` | Android 7 oder neuer mit USB-Host und aktueller System-WebView (Chrome 94+); Installation aus unbekannten Quellen erlauben |
 | **ESP32** | Der ESP32 steckt am RS485-Master/Slave-Port, öffnet ein WLAN und liefert die App selbst aus. Die App spricht per WebSocket, der ESP reicht die Zeilen zur UART durch | ESP32 mit 3,3-V-Full-Duplex-Transceiver, siehe [docs/hardware-esp32.md](docs/hardware-esp32.md) |
 
-Die Firmware des Forge (Original BASCOM 1.11.6000 oder der C-Port [forge-dsp-firmware](https://github.com/psych0d0g/forge-dsp-firmware)) bleibt unverändert, die App nutzt das Textprotokoll.
+Die Firmware des Forge (Original BASCOM 1.11.6000 oder der C-Port [forge-dsp-firmware](https://github.com/forge-dsp-community/firmware)) bleibt unverändert, die App nutzt das Textprotokoll.
 
 **Stand:** Release 1.4.0, Pre-Release 1.5.0-beta.1 und Hauptzweig. Seiten: Übersicht mit Pegeln aller Ein- und Ausgänge, Startzeiten und Laufzeit (Port-Firmware ab 2.4.1), Mixer als Mischpult (Kanalzüge, Routing,
 Ausgangsbank, Profile, „All Over“), Filter & EQ (Frequenz- und Phasengang, Weichenansicht mit elektrischer Summe,
