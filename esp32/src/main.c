@@ -9,6 +9,7 @@
  * docs/hardware-esp32.md.
  */
 #include <string.h>
+#include <unistd.h>
 #include "driver/uart.h"
 #include "esp_event.h"
 #include "esp_http_server.h"
@@ -17,13 +18,18 @@
 #include "esp_netif.h"
 #include "esp_wifi.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
 
 #define UART_PORT UART_NUM_1
-#define FORGE_LINE_MAX 512
+#define FORGE_LINE_MAX 512  /* lines from the Forge */
+/* lines to the Forge: its command buffer takes 127 bytes including CR LF (iface.c of the firmware);
+ * a longer line arrived cut and was run without an error (gui-ng#35) */
+#define FORGE_CMD_MAX 127
 #define MAX_CLIENTS 4
+#define TX_QUEUE 16
 
 static const char *TAG = "forge-bridge";
 extern const uint8_t web_start[] asm("_binary_index_html_gz_start");
@@ -32,18 +38,56 @@ extern const uint8_t web_end[] asm("_binary_index_html_gz_end");
 static httpd_handle_t server;
 static int clients[MAX_CLIENTS];
 static SemaphoreHandle_t clients_lock;
+/* a line to the Forge; the httpd task only queues it, uart_tx_task writes (#35: uart_write_bytes blocked
+ * the httpd task up to ~0.5 s with a full TX buffer and held up pages and other clients) */
+struct tx_line {
+	uint8_t len;
+	uint8_t buf[FORGE_CMD_MAX];
+};
+static QueueHandle_t tx_queue;
 
 /* --- WebSocket clients ------------------------------------------------------------- */
 
-static void client_add(int fd)
+/* 1 = taken, 0 = no slot free (the caller refuses the connection instead of keeping a client that never
+ * gets an answer, #35) */
+static int client_add(int fd)
+{
+	int ok = 0;
+	xSemaphoreTake(clients_lock, portMAX_DELAY);
+	for (int i = 0; i < MAX_CLIENTS && !ok; i++)
+		if (clients[i] == fd)
+			ok = 1;
+	for (int i = 0; i < MAX_CLIENTS && !ok; i++)
+		if (clients[i] < 0) {
+			clients[i] = fd;
+			ok = 1;
+		}
+	xSemaphoreGive(clients_lock);
+	return ok;
+}
+
+static void client_remove(int fd)
 {
 	xSemaphoreTake(clients_lock, portMAX_DELAY);
 	for (int i = 0; i < MAX_CLIENTS; i++)
-		if (clients[i] < 0) {
-			clients[i] = fd;
-			break;
-		}
+		if (clients[i] == fd)
+			clients[i] = -1;
 	xSemaphoreGive(clients_lock);
+}
+
+/* every closed socket (close frame, timeout, dropped WLAN) frees its slot (#35: before, only a failed
+ * send did, and four dead clients locked out every new one) */
+static void on_close(httpd_handle_t hd, int fd)
+{
+	(void)hd;
+	client_remove(fd);
+	close(fd);
+}
+
+static void send_text(httpd_req_t *req, const char *text)
+{
+	httpd_ws_frame_t f = {.type = HTTPD_WS_TYPE_TEXT, .payload = (uint8_t *)text, .len = strlen(text), .final = true};
+	httpd_ws_send_frame(req, &f);
 }
 
 static void broadcast(const char *line, size_t len)
@@ -81,23 +125,43 @@ static esp_err_t get_info(httpd_req_t *req)
 static esp_err_t ws_handler(httpd_req_t *req)
 {
 	if (req->method == HTTP_GET) {  /* handshake */
-		client_add(httpd_req_to_sockfd(req));
+		if (!client_add(httpd_req_to_sockfd(req))) {
+			ESP_LOGW(TAG, "all %d WebSocket slots taken, connection refused", MAX_CLIENTS);
+			return ESP_FAIL;  /* closes the socket */
+		}
 		return ESP_OK;
 	}
 	httpd_ws_frame_t f = {.type = HTTPD_WS_TYPE_TEXT};
 	esp_err_t e = httpd_ws_recv_frame(req, &f, 0);  /* length only */
-	if (e != ESP_OK || f.type != HTTPD_WS_TYPE_TEXT || f.len == 0 || f.len > FORGE_LINE_MAX)
+	if (e != ESP_OK)
 		return e;
+	if (f.type == HTTPD_WS_TYPE_CLOSE) {
+		client_remove(httpd_req_to_sockfd(req));
+		return ESP_OK;
+	}
+	if (f.type != HTTPD_WS_TYPE_TEXT || f.len == 0)
+		return ESP_OK;
 	uint8_t buf[FORGE_LINE_MAX + 2];
+	if (f.len > FORGE_LINE_MAX) {  /* refuse and close: the frame is not read */
+		send_text(req, "! bridge: line longer than 127 bytes, not sent");
+		return ESP_FAIL;
+	}
 	f.payload = buf;
 	if ((e = httpd_ws_recv_frame(req, &f, f.len)) != ESP_OK)
 		return e;
 	size_t n = f.len;
-	if (buf[n - 1] != '\n') {  /* the Forge ends a line at LF */
-		buf[n++] = '\r';
-		buf[n++] = '\n';
+	while (n && (buf[n - 1] == '\n' || buf[n - 1] == '\r'))
+		n--;
+	if (n + 2 > FORGE_CMD_MAX) {
+		send_text(req, "! bridge: line longer than 127 bytes, not sent");
+		return ESP_OK;
 	}
-	uart_write_bytes(UART_PORT, buf, n);
+	struct tx_line l = {.len = (uint8_t)(n + 2)};
+	memcpy(l.buf, buf, n);
+	l.buf[n] = '\r';  /* the Forge ends a line at LF */
+	l.buf[n + 1] = '\n';
+	if (xQueueSend(tx_queue, &l, 0) != pdTRUE)
+		send_text(req, "! bridge: send queue full, line not sent");
 	return ESP_OK;
 }
 
@@ -105,6 +169,8 @@ static void start_http(void)
 {
 	httpd_config_t cfg = HTTPD_DEFAULT_CONFIG();
 	cfg.max_open_sockets = MAX_CLIENTS + 3;
+	cfg.close_fn = on_close;
+	cfg.lru_purge_enable = true;  /* a page request still gets a socket when dead ones linger */
 	ESP_ERROR_CHECK(httpd_start(&server, &cfg));
 	static const httpd_uri_t uris[] = {
 		{.uri = "/", .method = HTTP_GET, .handler = get_index},
@@ -137,6 +203,15 @@ static void uart_task(void *arg)
 	}
 }
 
+static void uart_tx_task(void *arg)
+{
+	(void)arg;
+	struct tx_line l;
+	for (;;)
+		if (xQueueReceive(tx_queue, &l, portMAX_DELAY) == pdTRUE)
+			uart_write_bytes(UART_PORT, l.buf, l.len);
+}
+
 static void start_uart(void)
 {
 	const uart_config_t c = {
@@ -151,7 +226,9 @@ static void start_uart(void)
 	ESP_ERROR_CHECK(uart_param_config(UART_PORT, &c));
 	ESP_ERROR_CHECK(uart_set_pin(UART_PORT, CONFIG_FORGE_UART_TX_GPIO, CONFIG_FORGE_UART_RX_GPIO,
 	                             UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE));
+	tx_queue = xQueueCreate(TX_QUEUE, sizeof(struct tx_line));
 	xTaskCreate(uart_task, "uart", 4096, NULL, 10, NULL);
+	xTaskCreate(uart_tx_task, "uart_tx", 3072, NULL, 9, NULL);
 }
 
 /* --- WLAN -------------------------------------------------------------------------- */
