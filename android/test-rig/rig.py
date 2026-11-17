@@ -13,7 +13,13 @@ assert SERIAL != "192.168.5.28:5555", "the head unit is not a test target"
 
 
 def adb(*args, timeout=60, check=True):
-    p = subprocess.run([ADB, "-s", SERIAL, *args], capture_output=True, text=True, timeout=timeout)
+    try:
+        p = subprocess.run([ADB, "-s", SERIAL, *args], capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        # the VM hangs now and then (software renderer): without check, as if nothing came back
+        if check:
+            raise
+        return ""
     if check and p.returncode:
         raise RuntimeError(f"adb {args}: {p.stderr.strip()[:200]}")
     return p.stdout
