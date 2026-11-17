@@ -87,6 +87,13 @@ function attach(t: Transport) {
 
 let lastKind: "usb" | "esp" | "demo" | "sim" | null = null;
 async function connectionLost(why: string) {
+  // #41: a firmware update resets the Forge into its bootloader; the USB adapter may drop out for a
+  // moment (Android: the service opens it again by itself). The update handles that and reports its
+  // own errors; disconnecting here broke it and started the reading of a Forge in its bootloader.
+  if (app.exclusive || app.bootloader) {
+    app.log.push({ dir: "rx", text: `(connection dropped during the update: ${why})` });
+    return;
+  }
   const kind = lastKind;
   await disconnect();
   app.error = t("app.connectionLost", { why });
