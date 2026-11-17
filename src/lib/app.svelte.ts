@@ -7,7 +7,7 @@ import { identifyFlash, type FlashId } from "./boot/identify";
 import { deviceError, explain } from "./errors";
 import { autoPort, openNativeSerial, portsNative, type PortInfo } from "./transport/native";
 import { isNative } from "./native";
-import { androidPresent, androidRefreshMaster, isAndroid, openAndroidSerial } from "./android";
+import { androidDebuggable, androidPresent, androidRefreshMaster, isAndroid, openAndroidSerial } from "./android";
 import { openSim, simFlavours } from "./transport/sim";
 import { openWebSocket } from "./transport/websocket";
 import { t } from "./i18n/index.svelte";
@@ -71,7 +71,10 @@ function attach(t: Transport) {
   usbBaud = 38400;
   // two requests in a row without any line: page and Forge may be at different rates
   client.onMiss((n) => { if (n >= 2 && app.status !== "connecting") void recoverRate(); });
+  // debug build of the app: every line with a time stamp for the test rig (#33/#42), bounded
+  const trace = androidDebuggable() ? ((globalThis as unknown as { __forgeTrace?: unknown[] }).__forgeTrace ??= []) : null;
   client.onRaw((text, dir) => {
+    if (trace) { trace.push([Math.round(performance.now()), dir, text.trimEnd().slice(0, 80)]); if (trace.length > 20000) trace.splice(0, 5000); }
     if (dir === "tx") lastTx = Date.now();
     if (sdBusy || isPollLine(text)) return;  // status reads and file blocks would flood the console
     app.log.push({ dir, text: text.trimEnd() });

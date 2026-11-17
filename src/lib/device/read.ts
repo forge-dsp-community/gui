@@ -97,6 +97,8 @@ export async function readDevice(
       } catch { /* no answer */ }
     }
     if (reg === "system.firmware.port" && answers?.some((a) => a.kind === "error")) portRefused = true;
+    (globalThis as unknown as { __forgeTrace?: unknown[] }).__forgeTrace?.push([Math.round(performance.now()), "step",
+      `${reg}: ${answers ? answers.map((a) => a.kind).join(",") : "keine Antwort"} (port ${state.identity.port ?? "–"})`]);
     if (!answers) {   // optional register, or an answer lost while connecting: a port register is asked once more at the end
       if (port) missed.push(steps[i]);
       continue;
@@ -119,6 +121,8 @@ export async function readDevice(
   }
   // port registers left out or without an answer (#42: the first connect after installing the Android app
   // lost answers while the app restarted): once more, now that the identity is known
+  (globalThis as unknown as { __forgeTrace?: unknown[] }).__forgeTrace?.push([Math.round(performance.now()), "step",
+    `Ende: port ${state.identity.port ?? "–"}, übersprungen ${skipped.length}, ohne Antwort ${missed.length}, refused ${portRefused}`]);
   if (state.identity.port !== null && !portRefused) {
     for (const st of [...skipped, ...missed]) {
       onProgress({ done: steps.length, total: steps.length, current: st.reg });
