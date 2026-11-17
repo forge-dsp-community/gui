@@ -19,7 +19,8 @@ class Recorded implements Transport {
   async write(line: string) {
     const req = line.trim();
     this.sent.push(req);
-    const out = this.drop(req) ? [` !.1 ${req.slice(6)} unknown command`] : this.answers[req] ?? [];
+    // a register the recorded firmware did not know: "unknown command", as the firmware answers (#42)
+    const out = this.drop(req) || !this.answers[req] ? [` !.1 ${req.slice(6)} unknown command`] : this.answers[req];
     setTimeout(() => out.forEach((l) => this.fn(l)), 0);
   }
   onLine(fn: (l: string) => void) { this.fn = fn; }
