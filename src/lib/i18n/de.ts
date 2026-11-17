@@ -1223,6 +1223,7 @@ export const DE = {
   "spdif.rate": "Abtastrate am Ausgang",
   "spdif.rateHint": "Der Wandler im S/PDIF-Baustein setzt die Rate um. Viele Empfänger im Auto nehmen nur 44,1 oder 48 kHz; Sendermodule schaffen oft nur bis 96 kHz. Gilt nur, solange das Signal hinter dem DSP gewählt ist.",
   "spdif.rateRef": "wie der DSP (Referenztakt)",
+  "spdif.guide": "Anleitung: Umbau und Einstellungen",
   "spdif.toPool": "Filterplätze verteilen …",
 } as const;
 

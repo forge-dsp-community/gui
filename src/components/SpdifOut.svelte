@@ -34,7 +34,7 @@
 
 <section class="panel box" data-testid="spdif-out">
   <h3>{t("spdif.title")} <span class="beta">beta</span></h3>
-  <p class="muted small">{t("spdif.intro")}</p>
+  <p class="muted small">{t("spdif.intro")} <a href="https://github.com/psych0d0g/forge-dsp-firmware/blob/main/docs/spdif-out.md" target="_blank" rel="noreferrer">{t("spdif.guide")}</a></p>
   {#if !known}<p class="small warntxt" data-testid="spdif-needs-fw">{t("spdif.needsFw")}</p>{/if}
   <div class="choice" role="radiogroup" aria-label={t("spdif.title")}>
     <label><input type="radio" name="spdifout" checked={d.spdifOut !== 1} disabled={busy || !known} onchange={() => set(0)} />

@@ -1223,5 +1223,6 @@ export const EN: Record<Key, string> = {
   "spdif.rate": "Output sample rate",
   "spdif.rateHint": "The converter in the S/PDIF chip changes the rate. Many car receivers take only 44.1 or 48 kHz; transmitter modules often go up to 96 kHz only. Applies only while the signal after the DSP is selected.",
   "spdif.rateRef": "as the DSP (reference clock)",
+  "spdif.guide": "Guide: hardware change and settings (German)",
   "spdif.toPool": "Distribute filter places …",
 };
