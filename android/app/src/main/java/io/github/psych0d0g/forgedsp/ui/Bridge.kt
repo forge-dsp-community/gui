@@ -28,6 +28,21 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
 
     fun attached() = js("window.__forgeAndroid&&__forgeAndroid.attached()")
 
+    /** bytes of the Forge for the page (#42): the page fetches them itself (poll), every few ms and on a
+     *  kick. Pushed through evaluateJavascript they waited for the UI thread, which a slow frame (here
+     *  a 27 s swap of the VM's software renderer) holds: the GUI then read its port registers as missing. */
+    private val inbox = java.util.concurrent.ConcurrentLinkedQueue<ByteArray>()
+    private val kicked = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    @JavascriptInterface
+    fun poll(): String {
+        kicked.set(false)
+        if (inbox.isEmpty()) return ""
+        val out = java.io.ByteArrayOutputStream()
+        while (true) out.write(inbox.poll() ?: break)
+        return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    }
+
     @JavascriptInterface
     fun present(): Boolean = UsbLink.find(act) != null
 
@@ -46,7 +61,7 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
                 android.util.Log.i("ForgeAct", "open permitted act=${act.hashCode()} current=${MainActivity.current === act} finishing=${act.isFinishing}")
                 if (act.isFinishing || act.isDestroyed || MainActivity.current !== act) throw IllegalStateException("activity closed")
                 s.attachGui(this@Bridge,
-                    onData = { b -> js("window.__forgeAndroid&&__forgeAndroid.data('${Base64.encodeToString(b, Base64.NO_WRAP)}')") },
+                    onData = { b -> inbox.add(b); if (kicked.compareAndSet(false, true)) js("window.__forgeAndroid&&__forgeAndroid.kick()") },
                     onGone = { js("window.__forgeAndroid&&__forgeAndroid.gone()") })
                 // the service connects first (handshake, fast rate); the GUI then talks through it.
                 // Without an answer (e.g. a waiting bootloader) the GUI looks for itself.
@@ -75,7 +90,7 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
 
     /** the GUI lets go; the service keeps the connection */
     @JavascriptInterface
-    fun close() { svc?.detachGui(this) }
+    fun close() { svc?.detachGui(this); inbox.clear() }
 
     @JavascriptInterface
     fun save(id: Int, b64: String, name: String, mime: String) {

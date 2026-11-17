@@ -32,6 +32,7 @@ interface Bridge {
   debuggable?(): boolean;
   keepScreenOn?(on: boolean): void;
   recover?(): void;
+  poll?(): string;
 }
 
 const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as unknown as { ForgeAndroid?: Bridge }).ForgeAndroid ?? null) : null);
@@ -54,11 +55,21 @@ export function onAndroidAttached(fn: () => void) { attached = fn; }
 /** listeners of the open transport for "the Forge was unplugged" (#34) */
 const goneFns: ((why: string) => void)[] = [];
 
+/** #42: fetch what the app holds for the page; runs on the bridge thread of the app, not its UI thread */
+function pump() {
+  const b = bridge();
+  if (!b?.poll) return;
+  const s = b.poll();
+  if (s) (window as unknown as { __forgeAndroid: { data(b64: string): void } }).__forgeAndroid.data(s);
+}
+let pumpTimer: ReturnType<typeof setInterval> | null = null;
+
 const toB64 = (b: Uint8Array) => { let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
 const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 if (typeof window !== "undefined")
   (window as unknown as { __forgeAndroid: unknown }).__forgeAndroid = {
+    kick: () => pump(),
     data: (b64: string) => {
       // debug build: raw arrival for the test rig (#42)
       const tr = (globalThis as unknown as { __forgeTrace?: unknown[] }).__forgeTrace;
@@ -88,6 +99,7 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
   const queue = new ByteQueue();
   const dec = new TextDecoder();
   onData = (bytes) => { queue.push(bytes); split.push(dec.decode(bytes, { stream: true })); };
+  if (b.poll && !pumpTimer) pumpTimer = setInterval(pump, 15);
   return {
     name: "USB (Android)",
     write: async (line) => b.write(toB64(new TextEncoder().encode(line))),
@@ -95,7 +107,7 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
     onClose: (fn) => goneFns.push(fn),
     bytes: { write: async (d) => b.writeRaw(toB64(d)), read: (ms) => queue.read(ms), flush: () => queue.flush() },
     async setBaud(r) { queue.flush(); b.setBaud(r); },
-    async close() { onData = null; b.close(); },
+    async close() { onData = null; if (pumpTimer) { clearInterval(pumpTimer); pumpTimer = null; } b.close(); },
   };
 }
 
