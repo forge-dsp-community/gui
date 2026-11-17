@@ -41,9 +41,21 @@ class MainActivity : ComponentActivity() {
     private var pendingSave: Pair<ByteArray, (String) -> Unit>? = null
     @Volatile var service: ForgeService? = null
         private set
+    private var statusFn: ((ForgeService.Status) -> Unit)? = null
     private val conn = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName, b: IBinder) { service = (b as ForgeService.LocalBinder).service }
-        override fun onServiceDisconnected(name: ComponentName) { service = null }
+        override fun onServiceConnected(name: ComponentName, b: IBinder) {
+            val s = (b as ForgeService.LocalBinder).service
+            service = s
+            // gui-ng#34: the service found the Forge again (plugged in, switched on) while the GUI is
+            // offline: tell the GUI, it connects (the attach intent does not always reach the activity)
+            var last: ForgeService.Status? = null
+            statusFn = { st ->
+                if (st == ForgeService.Status.ONLINE && last != null && last != ForgeService.Status.ONLINE && !s.guiAttached)
+                    runOnUiThread { if (::bridge.isInitialized) bridge.attached() }
+                last = st
+            }.also { s.onStatus(it) }
+        }
+        override fun onServiceDisconnected(name: ComponentName) { statusFn?.let { service?.offStatus(it) }; service = null }
     }
 
     private val pickFile = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { r ->

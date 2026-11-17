@@ -278,6 +278,8 @@ class ForgeService : Service() {
     }
 
     fun onStatus(fn: (Status) -> Unit) { statusListeners.add(fn); fn(status) }
+    /** the GUI talks through the service right now (gui-ng#34: reconnect it when the Forge comes back) */
+    val guiAttached get() = gui != null
     fun offStatus(fn: (Status) -> Unit) { statusListeners.remove(fn) }
 
     private fun setStatus(s: Status) {
