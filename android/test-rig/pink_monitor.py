@@ -71,6 +71,7 @@ def player(path, stop):
 
 
 SRC_VOLUME = "46%"   # PipeWire volume is cubic: 46 % = -20 dB below 100 %; pink at about -32 dBFS RMS, peaks clear of 0 dBFS
+NOISE_FLOOR_DBFS = -42.5   # line-in at 46 % without signal (measured 17.11.2026)
 
 
 def setup_line_in():
@@ -135,7 +136,8 @@ def main():
                     old = sorted(x for x in os.listdir(a.raw) if x.startswith("raw-"))[:-3]
                     for x in old:
                         os.remove(os.path.join(a.raw, x))
-                raw_idx.write(f"{now - n / FS:.3f},{raw_name},{raw_f.tell()},{total}\n"); raw_f.write(b)
+                off = raw_f.tell(); raw_f.write(b); raw_f.flush()   # data first, then the index entry
+                raw_idx.write(f"{now - n / FS:.3f},{raw_name},{off},{total}\n")
             total += n   # samples recorded so far (continuous: arecord has no gaps)
             row = [now]; bands = []
             for c in range(2):
@@ -153,7 +155,9 @@ def main():
                     out(f"{name}: {state[c]} -> {new} ({d:+.1f} dB breitbandig)"); state[c] = new
             if now - last >= 10:
                 last = now
-                out(f"Pegel L/R {row[1] - ref[0]:+.1f}/{row[2] - ref[1]:+.1f} dB")
+                # absolute too: a reference taken while nothing arrives makes the relative value look fine
+                warn = "  KEIN SIGNAL (Grundrauschen des Line-In)" if max(row[1], row[2]) < NOISE_FLOOR_DBFS + 6 else ""
+                out(f"Pegel L/R {row[1] - ref[0]:+.1f}/{row[2] - ref[1]:+.1f} dB (absolut {row[1]:.1f}/{row[2]:.1f} dBFS){warn}")
                 ins = subprocess.run(["amixer", "-c", "1", "sget", "Input Source,0"], capture_output=True, text=True).stdout
                 if "Item0: 'Line'" not in ins:
                     out("Line-In war umgestellt, neu eingerichtet"); setup_line_in()

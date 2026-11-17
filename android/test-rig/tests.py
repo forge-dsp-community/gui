@@ -100,7 +100,7 @@ class Run:
                 t0 = time.time()
                 while time.time() - t0 < 300:
                     st = cdp.js("window.__forgeRig.app.status + ':' + Object.keys(window.__forgeRig.app.device.biquads).length")
-                    if st and st.startswith("online:") and int(st.split(":")[1]) >= 10:
+                    if st and st.startswith("online:") and int(st.split(":")[1]) >= 1:
                         break
                     time.sleep(5)
                 else:
@@ -631,46 +631,51 @@ def t12(r, f, cdp):
     r.say("T12 Phasendreher, Laufzeit, Phase shift (Übertragungsfunktion mit Phase, periodisches rosa Rauschen)")
     if tf.period() is None or tf.recording(time.time() - 5, time.time()) is None:
         r.check("T12", "Monitor mit periodischem Rauschen und Rohaufnahme", False); return
+    lv = level_at(time.time() - 10, time.time())
+    if not lv or max(lv) < -36:
+        r.check("T12", "Signal am Line-In (über dem Grundrauschen)", False, f"{lv} dBFS"); return
     S = Setup(r, f, cdp)
     try:
-        def abc(apply, revert, win=8):
-            time.sleep(2); ta = time.time(); time.sleep(win); A = tf.measure(ta, time.time(), S.ch)
-            apply(); time.sleep(4); tb = time.time(); time.sleep(win); B = tf.measure(tb, time.time(), S.ch)
-            revert(); time.sleep(4); tc = time.time(); time.sleep(win); C = tf.measure(tc, time.time(), S.ch)
-            # clock drift PC/Forge: latency A->C (no change) interpolated to B
-            drift = (C[2] - A[2]) * (tb - ta) / (tc - ta)
-            fr = A[0]; ratio = B[1] / A[1] * np.exp(2j * np.pi * fr * drift / tf.FS)
-            dly = (B[2] - A[2] - drift) / tf.FS * 1000
-            return fr, ratio, dly, B[3] * A[3]
-        pb = (np.abs(tf.measure(time.time() - 8, time.time(), S.ch)[1]) > 0)
-        band = lambda fr: (fr >= 150) & (fr <= 12000)
+        def abc(apply, revert, win=16):
+            # ONE contiguous recording: before (A), with (B), after (C) the change; clock drift and
+            # the reference come from A and C, the change from B (tf.span)
+            time.sleep(2); ta = time.time(); time.sleep(win)
+            tb0 = time.time(); apply(); time.sleep(win)
+            tb1 = time.time(); revert(); time.sleep(win); tc1 = time.time()
+            time.sleep(2)   # the last second has to be in the index
+            R = tf.span(ta, tb0, tb1, tc1, S.ch)
+            r.data.setdefault("drift_ppm", []).append(round(R["ppm"], 1))
+            r.data.setdefault("snr_db", []).append(round(R["snr"], 1))
+            return R
+        deg = lambda z: np.degrees(np.angle(z))
         # polarity
-        fr, ratio, dly, sgn = abc(lambda: S.w(f"phase.out.{S.out}", "1"), lambda: S.w(f"phase.out.{S.out}", "0"))
-        m = band(fr); ph = np.degrees(np.angle(np.mean(ratio[m])))
-        r.check("T12", f"Phasendreher Ausgang {S.out}: 180°", abs(abs(ph) - 180) <= 10 and sgn < 0, f"{ph:+.0f}°, Korrelation {'umgekehrt' if sgn < 0 else 'gleich'}")
-        r.data.setdefault("phase", []).append({"step": "Phasendreher", "f": fr[m][::40].tolist(), "deg": np.degrees(np.angle(ratio[m]))[::40].tolist(), "model": [180.0] * len(fr[m][::40])})
+        R = abc(lambda: S.w(f"phase.out.{S.out}", "1"), lambda: S.w(f"phase.out.{S.out}", "0"))
+        ph = deg(np.sum(R["rb"] * R["wb"]) / np.sum(R["wb"]))
+        spread = float(np.max(np.abs((deg(R["rb"]) - 180 + 180) % 360 - 180))) if len(R["rb"]) else 999
+        r.check("T12", f"Phasendreher Ausgang {S.out}: 180° in allen Terzbändern (±10°)", abs(abs(ph) - 180) <= 10 and spread <= 10 and R["pol"] < 0,
+                f"{ph:+.0f}°, größte Abweichung {spread:.0f}° in {len(R['fb'])} Bändern {R['fb'].min():.0f}–{R['fb'].max():.0f} Hz, SNR {R['snr']:.0f} dB")
+        r.data.setdefault("phase", []).append({"step": "Phasendreher", "f": R["fb"].tolist(), "deg": deg(R["rb"]).tolist(), "model": [180.0] * len(R["fb"])})
         # delay (samples at 96 kHz)
         d0 = int(f.get(f"delay.{S.out}")[0][f"delay.{S.out}"])
         for add in (48, 96, 480):
-            fr, ratio, dly, _ = abc(lambda: S.w(f"delay.{S.out}", str(d0 + add)), lambda: S.w(f"delay.{S.out}", str(d0)))
+            R = abc(lambda: S.w(f"delay.{S.out}", str(d0 + add)), lambda: S.w(f"delay.{S.out}", str(d0)))
             want = add / 96.0
-            r.check("T12", f"Laufzeit +{add} Samples = {want:.2f} ms", abs(dly - want) <= 0.05, f"gemessen {dly:.3f} ms")
-        # phase shift / all-pass in a free slot, phase against the formulas
+            r.check("T12", f"Laufzeit +{add} Samples = {want:.2f} ms (±0,02 ms)", abs(R["delay_ms"] - want) <= 0.02,
+                    f"gemessen {R['delay_ms']:.3f} ms (grob {R['coarse_ms']:.3f}), Taktversatz {R['ppm']:+.1f} ppm, SNR {R['snr']:.0f} dB")
+        # phase shift / all-pass in a free slot, phase against the formulas (band values)
+        _band_model_import()
         for name, p in (("Phase shift 1 kHz, Q 0,7 (Typ 20)", (20, 1000, 0, 707, 0, 128)),
                         ("Allpass 1. Ordnung 1 kHz (Typ 21)", (21, 1000, 0, 707, 0, 128)),
                         ("Allpass −45° bei 1 kHz (Typ 22)", (22, 1000, 0, 707, 0, 128))):
-            fr, ratio, dly, _ = abc(lambda: S.w(f"biquad.{S.out}.10.calc", "[" + ",".join(map(str, p)) + "]"),
-                                    lambda: S.w(f"biquad.{S.out}.10.calc", "[0,0,0,0,0,0]"))
-            m = band(fr)
-            _band_model_import()
+            R = abc(lambda: S.w(f"biquad.{S.out}.10.calc", "[" + ",".join(map(str, p)) + "]"),
+                    lambda: S.w(f"biquad.{S.out}.10.calc", "[0,0,0,0,0,0]"))
             raw = " ".join(f"{v:08X}" for v in _model_mod.bq_reference("V40-96ELN", *p))
-            model = np.array([np.degrees(np.angle(_model_mod.bq_response(raw, x))) for x in fr[m][::20]])
-            meas = np.degrees(np.angle(ratio[m][::20]))
-            err = np.abs((meas - model + 180) % 360 - 180)
-            mag = 20 * np.log10(np.abs(ratio[m]))
-            r.data.setdefault("phase", []).append({"step": name, "f": fr[m][::20].tolist(), "deg": meas.tolist(), "model": model.tolist()})
-            r.check("T12", name + ": Phase wie Soll (±15°), Betrag 0 dB (±1 dB)", float(np.percentile(err, 95)) <= 15 and float(np.abs(np.median(mag))) <= 1,
-                    f"95 % der Punkte innerhalb {np.percentile(err, 95):.0f}°, Betrag {np.median(mag):+.1f} dB")
+            mod = tf.band_model(R, lambda x: _model_mod.bq_response(raw, x))
+            err = np.abs((deg(R["rb"]) - deg(mod) + 180) % 360 - 180)
+            mag = 20 * np.log10(np.abs(R["rb"]) / np.abs(mod))
+            r.data.setdefault("phase", []).append({"step": name, "f": R["fb"].tolist(), "deg": deg(R["rb"]).tolist(), "model": deg(mod).tolist()})
+            r.check("T12", name + ": Phase je Terzband wie Soll (±10°), Betrag ±1 dB", float(err.max()) <= 10 and float(np.abs(mag).max()) <= 1,
+                    f"größte Abweichung {err.max():.1f}° bei {R['fb'][int(np.argmax(err))]:.0f} Hz, Betrag max {np.abs(mag).max():.2f} dB, {len(R['fb'])} Bänder, SNR {R['snr']:.0f} dB")
     finally:
         S.undo()
 
@@ -857,13 +862,16 @@ def main():
                 t_read = time.time(); n = 0
                 while time.time() - t_read < 300:
                     try:
-                        n = cdp.js("window.__forgeRig.app.status === 'online' ? Object.keys(window.__forgeRig.app.device.biquads).length : 0", timeout_ms=20000) or 0
+                        # read through: online and no reading in progress (the port firmware lists only channels
+                        # with filters in use, so their number depends on the tuning)
+                        n = cdp.js("window.__forgeRig.app.status === 'online' && !window.__forgeRig.app.progress ? Object.keys(window.__forgeRig.app.device.biquads).length : 0", timeout_ms=20000) or 0
                     except Exception:
                         n = 0; cdp = rig.open_gui()
-                    if n >= 10:
+                    if n >= 1:
                         break
                     time.sleep(5)
-                r.check(t, "GUI hat den Forge vollständig eingelesen (10 Filterkanäle)", n >= 10, f"{n} Kanäle nach {time.time() - t_read:.0f} s")
+                r.check(t, "GUI hat den Forge eingelesen (online, Einlesen beendet)", n >= 1, f"{n} Kanäle mit Filtern, {time.time() - t_read:.0f} s")
+                r.data.setdefault("gui_read_s", []).append(round(time.time() - t_read))
             t_start = time.time()
             {"T12": lambda: t12(r, f, cdp), "T13": lambda: t13(r, f, cdp), "T14": lambda: t14(r, f, cdp), "T15": lambda: t15(r, f, cdp),
              "T09": lambda: t09(r, f, cdp, a.hex),
