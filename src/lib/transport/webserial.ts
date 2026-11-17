@@ -35,7 +35,7 @@ export async function openWebSerial(baudRate = 38400, chosen?: SerialPortLike): 
   const listeners: ((l: string) => void)[] = [];
   const split = new LineSplitter((l) => listeners.forEach((f) => f(l)));
   const queue = new ByteQueue();
-  let reader: ReadableStreamDefaultReader<Uint8Array>, writer: WritableStreamDefaultWriter<Uint8Array>;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined, writer!: WritableStreamDefaultWriter<Uint8Array>;
   let loop: Promise<void> = Promise.resolve();
   let open = false;
   const closed: ((why: string) => void)[] = [];
@@ -66,20 +66,34 @@ export async function openWebSerial(baudRate = 38400, chosen?: SerialPortLike): 
   }
   async function stop() {
     open = false;
+    if (!reader) return;
     await reader.cancel().catch(() => undefined);
     await loop;
     reader.releaseLock();
     writer.releaseLock();
     await port.close().catch(() => undefined);   // gone already when the Forge was switched off
   }
+  // a rate change closes and reopens the port: a write in between went to the released writer
+  // ("This writable stream writer has been released"). Writes wait for it; after close they fail plainly.
+  let switching: Promise<void> | null = null;
+  async function send(data: Uint8Array) {
+    if (switching) await switching.catch(() => undefined);
+    if (!open) throw new Error("USB port closed");
+    await writer.write(data);
+  }
   await start(baudRate);
   return {
     name: "USB",
-    write: (line) => writer.write(new TextEncoder().encode(line)),
+    write: (line) => send(new TextEncoder().encode(line)),
     onLine: (fn) => listeners.push(fn),
-    bytes: { write: (data) => writer.write(data), read: (ms) => queue.read(ms), flush: () => queue.flush() },
-    async setBaud(baud) { await stop(); queue.flush(); await start(baud); },
+    bytes: { write: (data) => send(data), read: (ms) => queue.read(ms), flush: () => queue.flush() },
+    async setBaud(baud) {
+      while (switching) await switching.catch(() => undefined);
+      const run = (async () => { await stop(); queue.flush(); await start(baud); })();
+      switching = run;
+      try { await run; } finally { if (switching === run) switching = null; }
+    },
     onClose: (fn) => closed.push(fn),
-    close: stop,
+    close: async () => { while (switching) await switching.catch(() => undefined); await stop(); },
   };
 }
