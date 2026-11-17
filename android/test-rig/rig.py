@@ -168,7 +168,7 @@ class Forge:
 
     def get(self, reg):
         err, lines = self.send(f"get.1 {reg}")
-        return dict(re.findall(r"<\.1 (\S+?)=(\S*)", "\n".join(lines))), err
+        return dict(re.findall(r"<\.1 (\S+?)=(.*?)\s*$", "\n".join(lines), re.M)), err
 
     def set(self, reg, val, verify=True, read=None):
         err, lines = self.send(f"set.1 {reg}={val}")

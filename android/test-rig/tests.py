@@ -802,7 +802,15 @@ def t15(r, f, cdp):
 def t09(r, f, cdp, local_hex=None):
     """the firmware page of the app: release 2.6.1 from GitHub, then a local file (the current state)"""
     r.say("T09 Firmware-Update über die App (Firmware-Seite: Release laden bzw. Datei wählen, Update starten)")
-    probe = {k: f.get(k)[0].get(k) for k in ("modc.21", "biquad.3.5", "gain.out.3", "delay.7", "preset.loaded")}
+    # names (outputs in the ERAM, inputs at 0x0C00) and every MODC block (ERAM) besides the tuning (AT24C512)
+    for n in range(1, 9):
+        f.set(f"system.channel.name.{n}", f'"T09 Out {n}"'); f.set(f"system.channel.in.{n}", f'"T09 In {n}"')
+    keys = (["biquad.3.5", "gain.out.3", "delay.7", "preset.loaded"] + [f"system.channel.name.{n}" for n in range(1, 9)]
+            + [f"system.channel.in.{n}" for n in range(1, 9)] + [f"modc.{n}" for n in range(1, 33)])
+    probe = {k: f.get(k)[0].get(k) for k in keys}
+    r.say(f"   vor dem Update: {sum(1 for k in probe if probe[k] is not None)} Werte gelesen, Namen {probe['system.channel.name.1']} / {probe['system.channel.in.1']}, "
+          f"MODC aktiv: {[k for k in probe if k.startswith('modc.') and probe[k] and probe[k].startswith('[1,')]}")
+    r.data["T09_probe"] = probe
     cdp.js("window.confirm = () => true; setTimeout(() => { window.__forgeRig.app.page = 'firmware' }, 0); 1"); time.sleep(10)
     r.shot("t09-firmware", "T09: Firmware-Seite vor dem Update", page="firmware", cdp=cdp)
 
@@ -810,6 +818,8 @@ def t09(r, f, cdp, local_hex=None):
         t0 = time.time()
         res = cdp.js(source_js, timeout_ms=600000)
         r.say(f"   {label}: Quelle geladen ({res})")
+        if res == "keine Releaseauswahl":
+            return None, 0
         cdp.js("""(() => { for (const l of document.querySelectorAll('label.check input[type=checkbox]')) {
                     const txt = l.parentElement.textContent; if (/zuerst|first/i.test(txt) && l.checked) l.click();
                     if (/gelesen|read/i.test(txt) && !l.checked) l.click(); }
@@ -834,17 +844,25 @@ def t09(r, f, cdp, local_hex=None):
         const f = [...sel[1].options].find(o => /96ELN-2\.6\.1\.hex/.test(o.textContent)); if (f) { sel[1].value = f.value; sel[1].dispatchEvent(new Event('change')); }
         const b = [...document.querySelectorAll('button')].find(x => /^(Laden|Load)$/.test(x.textContent.trim())); b && b.click();
         await new Promise(r => setTimeout(r, 15000)); return (tag ? tag.textContent : '?') + ' / ' + (f ? f.textContent : '?'); })()""", "Release")
-    r.check("T09", "Update aus dem Release 2.6.1 über die App", ok, f"{dur:.0f} s")
-    t = rig.wait_online(f, 180)
-    ver = f.get("system.firmware.port")[0].get("system.firmware.port")
-    r.check("T09", "Forge läuft danach mit 2.6.1", ver == '"2.6.1"', f"{ver}, wieder verbunden nach {t and round(t)} s")
-    after = {k: f.get(k)[0].get(k) for k in probe}
-    r.check("T09", "Abstimmung nach dem Update erhalten", after == probe, f"{[k for k in probe if after[k] != probe[k]]}")
+    if ok is None:
+        r.say("   (App ohne Releaseliste: Update über eine Datei, Releases nur im Pages-Build)")
+    else:
+        r.check("T09", "Update aus dem Release 2.6.1 über die App", ok, f"{dur:.0f} s")
+        t = rig.wait_online(f, 180)
+        ver = f.get("system.firmware.port")[0].get("system.firmware.port")
+        r.check("T09", "Forge läuft danach mit 2.6.1", ver == '"2.6.1"', f"{ver}, wieder verbunden nach {t and round(t)} s")
+        after = {k: f.get(k)[0].get(k) for k in probe}
+        r.data["T09_after_release"] = after
+        for grp, pre in (("Abstimmung (Filter, Gain, Delay, Preset)", ("biquad", "gain", "delay", "preset")), ("Ausgangsnamen", ("system.channel.name",)),
+                         ("Eingangsnamen", ("system.channel.in",)), ("MODC-Blöcke", ("modc.",))):
+            ks = [k for k in probe if k.startswith(pre)]
+            r.check("T09", f"{grp} nach dem Update erhalten", all(after[k] == probe[k] for k in ks),
+                    "; ".join(f"{k}: {probe[k]} -> {after[k]}" for k in ks if after[k] != probe[k])[:600])
     if local_hex:
         text = open(local_hex).read()
         js = ("(async () => { const inp = document.querySelector('input[type=file]'); const dt = new DataTransfer(); "
               f"dt.items.add(new File([{json.dumps(text)}], {json.dumps(os.path.basename(local_hex))}, {{type: 'text/plain'}})); inp.files = dt.files; "
-              "inp.dispatchEvent(new Event('change', {bubbles: true})); await new Promise(r => setTimeout(r, 4000)); return inp.files[0].name; })()")
+              "inp.dispatchEvent(new Event('change', {bubbles: true})); await new Promise(r => setTimeout(r, 4000)); const fl = document.querySelector('main').innerText; return /\.hex/.test(fl) ? 'Datei übernommen' : 'Datei nicht übernommen'; })()")
         cdp2 = rig.open_gui(); cdp2.js("window.confirm = () => true; setTimeout(() => { window.__forgeRig.app.page = 'firmware' }, 0); 1"); time.sleep(10)
         cdp_saved = cdp
         cdp = cdp2
@@ -854,7 +872,12 @@ def t09(r, f, cdp, local_hex=None):
         ver = f.get("system.firmware.port")[0].get("system.firmware.port")
         r.check("T09", "Forge läuft danach mit dem Dateistand", ver and ver.strip('"') in os.path.basename(local_hex), f"{ver}")
         after = {k: f.get(k)[0].get(k) for k in probe}
-        r.check("T09", "Abstimmung auch danach erhalten", after == probe, f"{[k for k in probe if after[k] != probe[k]]}")
+        r.data["T09_after_file"] = after
+        for grp, pre in (("Abstimmung (Filter, Gain, Delay, Preset)", ("biquad", "gain", "delay", "preset")), ("Ausgangsnamen", ("system.channel.name",)),
+                         ("Eingangsnamen", ("system.channel.in",)), ("MODC-Blöcke", ("modc.",))):
+            ks = [k for k in probe if k.startswith(pre)]
+            r.check("T09", f"{grp} auch nach dem zweiten Update erhalten", all(after[k] == probe[k] for k in ks),
+                    "; ".join(f"{k}: {probe[k]} -> {after[k]}" for k in ks if after[k] != probe[k])[:600])
 
 def main():
     ap = argparse.ArgumentParser()

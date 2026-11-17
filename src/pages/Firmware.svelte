@@ -6,6 +6,7 @@
   import { backupInfo, freeSlot, isPort, parseScan, sdBackup, sdList, sdState, type BackupInfo } from "../lib/device";
   import { describeFlash } from "../lib/boot/identify";
   import { isNative } from "../lib/native";
+  import { isAndroid } from "../lib/android";
   import { openWebSerial } from "../lib/transport/webserial";
   import type { Transport } from "../lib/transport/types";
   import { APP_SIZE, imageKnows, runsPcb30 } from "../lib/boot/client";
@@ -147,6 +148,10 @@
   function download(data: Uint8Array, name: string) {
     saveFile(data as BlobPart, name);
   }
+  /* Android: the save dialog (ACTION_CREATE_DOCUMENT) sends the app to the background, the WebView
+   * then throttles its timers and the running update stalls ("bootloader no longer answers").
+   * There the backups are only offered by the buttons once the update is through (#41). */
+  const autoSave = () => !isAndroid();
 
   // --- the way into the bootloader from the original firmware: switch off, hold the button, switch on ---
   let flow = $state<{ state: BootWaitState; ctl: { signal: AbortSignal; skipOff?: boolean; port?: () => Promise<Transport | null>;
@@ -189,8 +194,10 @@
         if (!b?.flash || !b.eeprom) throw new UpdateError(`${t("firmware.reading")}: ${b?.error || t("common.notConnected")}`, "read", false);
         step("read", 1, 1);
         saved = { flash: b.flash, eeprom: b.eeprom, flashName: name("flash"), eepromName: name("eeprom") };
-        download(b.flash, saved.flashName);  // the browser may block downloads that no click started: buttons below
-        download(b.eeprom, saved.eepromName);
+        if (autoSave()) {   // the browser may block downloads that no click started: buttons below
+          download(b.flash, saved.flashName);
+          download(b.eeprom, saved.eepromName);
+        }
       }
       let onCard = false;
       if (backup && port && sd && sdUsable) {
@@ -212,8 +219,10 @@
         onStep: step,
         onBackup: (flash, eeprom) => {
           saved = { flash, eeprom, flashName: name("flash"), eepromName: name("eeprom") };
-          download(flash, saved.flashName);
-          download(eeprom, saved.eepromName);
+          if (autoSave()) {
+            download(flash, saved.flashName);
+            download(eeprom, saved.eepromName);
+          }
         },
       }, { image: file.image, backup: backup && !onCard && !app.bootloader, identity });
       result = { ok: true, text: t("firmware.doneNBytesWritten", { n: r.written }) };
@@ -354,6 +363,7 @@
     {#if saved}
       <div class="saved">
         <span class="muted small">{t("firmware.backupBeforeUpdateN", { n: saved.flash.length + saved.eeprom.length })}</span>
+        {#if !autoSave()}<span class="small">{t("firmware.saveBackupAfterUpdate")}</span>{/if}
         <div class="btns">
           <button onclick={() => download(saved!.flash, saved!.flashName)}>{t("firmware.saveFlashBackup")}</button>
           <button onclick={() => download(saved!.eeprom, saved!.eepromName)}>{t("firmware.saveEEPROMBackup")}</button>

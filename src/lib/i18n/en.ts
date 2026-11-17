@@ -450,6 +450,7 @@ export const EN: Record<Key, string> = {
   "firmware.notesReadImageRight": "Notes read, this image is right",
   "firmware.startUpdate": "Start update",
   "firmware.backupBeforeUpdateN": "Backup before the update ({n} bytes), kept until you leave the page:",
+  "firmware.saveBackupAfterUpdate": "The app opens no save dialog during the update (it would interrupt it). Please save the backup now with the buttons.",
   "firmware.saveFlashBackup": "Save flash backup",
   "firmware.saveEEPROMBackup": "Save EEPROM backup",
   "firmware.oldFirmwareNoLonger": "The old firmware is no longer complete. The bootloader is unchanged and waits: leave USB plugged in, do not switch the device off and press \"Start update\" again.",
