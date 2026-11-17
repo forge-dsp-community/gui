@@ -71,10 +71,18 @@
         if (Date.now() - t0 < 20000) continue;
         await recoverRate();
         up = (await query("system.ping")).some((a) => a.kind === "get");
+        // the factory reset restarts the Forge twice: the first answers can come from the start in
+        // between; it counts only when it still answers 20 s later
+        if (up) {
+          await sleep(20000);
+          await recoverRate();
+          up = (await query("system.ping")).some((a) => a.kind === "get");
+        }
       }
       if (!up) { err = t("factory.noAnswer"); phase = "confirm"; return; }
       app.exclusive = false;
       await reload();
+      if (app.device.identity.port === null) await reload();   // a restart came in between: once more
       after = await readCal();
       phase = "done";
     } finally {

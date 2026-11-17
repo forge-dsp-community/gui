@@ -58,8 +58,14 @@ def unplug():
 
 # --- UI ------------------------------------------------------------------------------------------
 def ui_nodes():
-    sh("uiautomator dump /sdcard/rig_ui.xml >/dev/null 2>&1")
-    xml = sh("cat /sdcard/rig_ui.xml")
+    # the dump fails now and then while a window animates: try again, an empty list when it never works
+    xml = ""
+    for _ in range(3):
+        if adb("shell", "uiautomator dump /sdcard/rig_ui.xml >/dev/null 2>&1 && cat /sdcard/rig_ui.xml", check=False):
+            xml = adb("shell", "cat /sdcard/rig_ui.xml", check=False) or ""
+            if "<node" in xml:
+                break
+        time.sleep(1)
     nodes = []
     for m in re.finditer(r"<node [^>]*>", xml):
         a = dict(re.findall(r'(\w[\w-]*)="([^"]*)"', m.group(0)))
@@ -257,9 +263,12 @@ class Cdp:
         return res.get("result", {}).get("value")
 
 
-def open_gui(timeout=60):
-    """the app in front; returns once the GUI is loaded (debug builds: window.__forgeRig)"""
-    sh(f"am start -n {PKG}/.ui.MainActivity >/dev/null")
+def open_gui(timeout=60, front=True):
+    """the app in front; returns once the GUI is loaded (debug builds: window.__forgeRig).
+    front=False: only attach DevTools (an `am start` pauses the activity for a moment, which stalled
+    a running firmware update)"""
+    if front:
+        sh(f"am start -n {PKG}/.ui.MainActivity >/dev/null")
     t0 = time.time()
     while time.time() - t0 < timeout:
         try:
