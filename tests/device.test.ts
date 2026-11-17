@@ -59,6 +59,21 @@ describe("readDevice", () => {
     expect(t.sent.filter((l) => l === "get.1 gain.out").length).toBe(2);
     expect(s.gain.out.slice(0, 2)).toEqual([223, 199]);
   });
+  it("reads the port registers after all when the port identity came late (#42)", async () => {
+    const t = new Recorded(fixture("V40-96ELN"));
+    let lost = 0;
+    const write = t.write.bind(t);
+    t.write = async (line: string) => {   // the identity gets lost three times while connecting
+      if (line.trim() === "get.1 system.firmware.port" && lost++ < 3) { t.sent.push(line.trim()); return; }
+      return write(line);
+    };
+    const s = await readDevice(new ForgeClient(t, 100, 10));
+    expect(s.identity.port).toBe("9.8.7-test");
+    expect(isPort(s)).toBe(true);
+    // port registers asked once the identity was there
+    expect(t.sent.filter((l) => l === "get.1 system.channel.in.*").length).toBe(1);
+    expect(t.sent.indexOf("get.1 system.channel.in.*")).toBeGreaterThan(t.sent.lastIndexOf("get.1 system.firmware.port"));
+  });
   it("reads a V40-96ELN with the port firmware", async () => {
     const t = new Recorded(fixture("V40-96ELN"));
     const progress: number[] = [];

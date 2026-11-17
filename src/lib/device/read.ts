@@ -71,11 +71,12 @@ export async function readDevice(
 ): Promise<DeviceState> {
   const state = emptyState();
   const steps = [...STEPS];
+  const skipped: { reg: string; port?: boolean; slow?: boolean }[] = [];
   for (let i = 0; i < steps.length; i++) {
     const { reg, port } = steps[i];
     onProgress({ done: i, total: steps.length, current: reg });
     // original firmware (answered system.firmware, but not system.firmware.port): not asked
-    if (port && reg !== "system.firmware.port" && state.identity.port === null) continue;
+    if (port && reg !== "system.firmware.port" && state.identity.port === null) { skipped.push(steps[i]); continue; }
     let answers: Answer[] | null = null;
     // a lost answer (38400 Bd, a device busy with a preset load) is asked once more; an error answer
     // ("unknown command") is an answer and ends it
@@ -99,6 +100,22 @@ export async function readDevice(
       if (a.kind === "get" && SUBLISTS.includes(a.register) && Array.isArray(a.value))
         for (const name of a.value) steps.splice(i + 1, 0, { reg: `${a.register}.${name}` });
     }
+  }
+  // the port identity got lost while connecting (the Android service and the GUI set the rate at the same
+  // time; #42): asked once more at the end, and when it is a port firmware after all, the port registers
+  // that were left out are read now
+  if (state.identity.port === null && skipped.length && state.identity.firmware) {
+    for (let t = 0; t < 2 && state.identity.port === null; t++) {
+      const a = await client.get("system.firmware.port", { timeoutMs: 4000 }).catch(() => null);
+      if (a?.some((x) => x.kind === "error")) break;   // original firmware: right to skip them
+      for (const x of a ?? []) applyAnswer(state, x);
+    }
+    if (state.identity.port !== null)
+      for (const st of skipped) {
+        onProgress({ done: steps.length, total: steps.length, current: st.reg });
+        const a = await client.get(st.reg).catch(() => null);
+        for (const x of a ?? []) applyAnswer(state, x);
+      }
   }
   onProgress({ done: steps.length, total: steps.length, current: "" });
   return state;
