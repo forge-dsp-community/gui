@@ -380,7 +380,9 @@ if (typeof window !== "undefined") setInterval(() => {
 let recovering = false;
 export async function recoverRate() {
   const tr = transport, c = client;
-  if (recovering || !tr?.setBaud || !c || app.bootloader || app.demo) return;
+  // #41: not while the port is in use for something else (firmware update: its bytes go to the
+  // bootloader, a ping in between broke the update in the Android app)
+  if (recovering || !tr?.setBaud || !c || app.bootloader || app.demo || app.exclusive) return;
   recovering = true;
   try {
     const ping = (ms: number) => c.get("system.ping", { timeoutMs: ms }).then((a) => a.some((x) => x.kind === "get")).catch(() => false);

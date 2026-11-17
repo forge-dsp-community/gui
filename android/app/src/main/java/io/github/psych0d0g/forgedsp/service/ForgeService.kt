@@ -257,15 +257,21 @@ class ForgeService : Service() {
         quiet = false
         lastLine = 0
     }
-    /** a line of the GUI; system.boot starts the bootloader: quiet until the next ordinary line */
+    /** a line of the GUI; set…system.boot starts the bootloader: quiet until the next ordinary line.
+     *  #41: a line while the bootloader is being talked to (raw bytes in the last 3 s, e.g. a rate check
+     *  of the GUI) keeps it quiet, else the binary answers of the bootloader went into the line parser
+     *  and the update stopped ("bootloader no longer answers"). */
     fun guiWrite(data: ByteArray) {
         val text = String(data, Charsets.ISO_8859_1)
-        quiet = text.contains("system.boot")
+        val boot = Regex("""^\s*set\S*\s+system\.boot""").containsMatchIn(text)
+        quiet = boot || (quiet && System.currentTimeMillis() - lastRaw < 3000)
         send(data)
     }
+    @Volatile private var lastRaw = 0L
     /** raw bytes of the GUI (bootloader): the service keeps quiet */
     fun guiWriteRaw(data: ByteArray) {
         quiet = true
+        lastRaw = System.currentTimeMillis()
         send(data)
     }
     fun setBaud(baud: Int) { runCatching { link?.setBaud(baud) } }
