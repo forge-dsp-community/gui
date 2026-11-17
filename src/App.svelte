@@ -32,8 +32,9 @@
 
   // navigation in the order of the signal path, then control, then tools
   const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
-    // the Android app (#29) starts at "car"; the overview is left out there
-    { group: tk("common.device"), items: [...(isAndroid() ? [] : [{ id: "overview" as const, label: tk("common.overview") }]), { id: "car" as const, label: tk("car.title") }] },
+    // the Android app (#29) starts at "car", which takes the place of the overview there; elsewhere
+    // only the overview (the car page stays reachable with ?page=car for a look in the browser)
+    { group: tk("common.device"), items: isAndroid() ? [{ id: "car" as const, label: tk("car.title") }] : [{ id: "overview" as const, label: tk("common.overview") }] },
     { group: tk("app.signalPath"), items: [
       { id: "mixer", label: tk("common.mixer") }, { id: "filters", label: tk("common.filtersEQ") }, { id: "delay", label: tk("common.delay") }] },
     { group: tk("app.control"), items: [{ id: "modc", label: tk("common.controlBlocks") }, { id: "presets", label: tk("common.presets") },
