@@ -102,7 +102,10 @@ class ForgeService : Service() {
                 } else if (c != '\r' && lineBuf.length < 4096) lineBuf.append(c)
             }
         }
-        if (toGui.size() > 0) gui?.invoke(toGui.toByteArray())
+        if (toGui.size() > 0) {
+            if (gui == null) android.util.Log.i("ForgeSvc", "to gui ${toGui.size()} bytes: no gui")
+            gui?.invoke(toGui.toByteArray())
+        } else if (b.isNotEmpty()) android.util.Log.i("ForgeSvc", "rx ${b.size} bytes: none for the gui (lineBuf ${lineBuf.length})")
     }
 
     /** handles one line; true if a request of the service or of another app took it */

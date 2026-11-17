@@ -59,7 +59,12 @@ const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 if (typeof window !== "undefined")
   (window as unknown as { __forgeAndroid: unknown }).__forgeAndroid = {
-    data: (b64: string) => onData?.(fromB64(b64)),
+    data: (b64: string) => {
+      // debug build: raw arrival for the test rig (#42)
+      const tr = (globalThis as unknown as { __forgeTrace?: unknown[] }).__forgeTrace;
+      if (tr) tr.push([Math.round(performance.now()), "data", `${b64.length} b64${onData ? "" : " (kein Empfänger)"}`]);
+      onData?.(fromB64(b64));
+    },
     attached: () => attached?.(),
     gone: () => { const f = [...goneFns]; goneFns.length = 0; f.forEach((x) => x("Forge unplugged")); },   // #34
     settle: (id: number, err: string) => { waiting.get(id)?.(err); waiting.delete(id); },
