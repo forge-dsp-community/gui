@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { app, inName, inNameRaw, inPos, outName, write } from "../lib/app.svelte";
+  import { outHidden, app, inName, inNameRaw, inPos, outName, write } from "../lib/app.svelte";
   import { t } from "../lib/i18n/index.svelte";
   import { alignFromDistances, cmToSamples, delayGroups, delayMax, inputDelayGroup, inputsLeftFirst, msToSamples, samplesToCm,
     samplesToMs, type DelayGroup } from "../lib/device";
@@ -121,7 +121,7 @@
     <div class="group">
       <div class="ghead"><h3>{t("delay.outputsB", { a: g.channels[0], b: g.channels[g.channels.length - 1] })}</h3>{@render meter("out", g)}</div>
       <div class="strips">
-        {#each g.channels as ch}{@render strip("out", ch, g, String(ch), outName(ch))}{/each}
+        {#each g.channels.filter((c) => !outHidden(c)) as ch}{@render strip("out", ch, g, String(ch), outName(ch))}{/each}
       </div>
     </div>
   {/each}

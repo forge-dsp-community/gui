@@ -1,0 +1,57 @@
+<script lang="ts">
+  // S/PDIF output behind the DSP (#42, forge-dsp-firmware#82): the second CT7302 sends DSP outputs 7/8
+  // (core 3, after mixer, filters, delay, gain) at the optical port 2 instead of scanning the inputs.
+  import { t } from "../lib/i18n/index.svelte";
+  import { app, setDigitalOnly, view, writeOnce } from "../lib/app.svelte";
+
+  const d = $derived(app.device);
+  let err = $state("");
+  let busy = $state(false);
+
+  async function set(v: number) {
+    if (busy || d.spdifOut === v) return;
+    busy = true;
+    err = await writeOnce("system.spdif.out", v);
+    if (!err) d.spdifOut = v;
+    else if (v === 0) setDigitalOnly(false);
+    busy = false;
+  }
+</script>
+
+<section class="panel box" data-testid="spdif-out">
+  <h3>{t("spdif.title")} <span class="beta">beta</span></h3>
+  <p class="muted small">{t("spdif.intro")}</p>
+  <div class="choice" role="radiogroup" aria-label={t("spdif.title")}>
+    <label><input type="radio" name="spdifout" checked={d.spdifOut !== 1} disabled={busy} onchange={() => set(0)} />
+      <span><strong>{t("spdif.scan")}</strong><small class="muted">{t("spdif.scanHint")}</small></span></label>
+    <label><input type="radio" name="spdifout" checked={d.spdifOut === 1} disabled={busy} onchange={() => set(1)} />
+      <span><strong>{t("spdif.dsp")}</strong><small class="muted">{t("spdif.dspHint")}</small></span></label>
+  </div>
+  {#if err}<p class="small errtxt">{t("spdif.refused", { err })}</p>{/if}
+  {#if d.spdifOut === 1}
+    <ul class="small notes">
+      <li>{t("spdif.hwJumper")}</li>
+      <li>{t("spdif.outs")}</li>
+      <li>{t("spdif.mute")}</li>
+      <li>{t("spdif.cores")}</li>
+    </ul>
+    <label class="row">
+      <span><strong>{t("spdif.digitalOnly")}</strong><small class="muted">{t("spdif.digitalOnlyHint")}</small></span>
+      <input type="checkbox" class="toggle" checked={view.digitalOnly} onchange={(e) => setDigitalOnly(e.currentTarget.checked)} />
+    </label>
+    <div><button onclick={() => (app.page = "biquads")}>{t("spdif.toPool")}</button></div>
+  {/if}
+</section>
+
+<style>
+  .box { padding: .9rem 1rem; display: grid; gap: .6rem; margin-bottom: .75rem; }
+  .small { font-size: .85rem; margin: 0; }
+  .beta { font-size: .7rem; padding: .05rem .4rem; border-radius: 999px; border: 1px solid var(--warn); color: var(--warn); vertical-align: middle; }
+  .choice { display: grid; gap: .45rem; }
+  .choice label { display: flex; gap: .55rem; align-items: flex-start; }
+  .choice span, .row span { display: grid; gap: .1rem; }
+  .notes { margin: 0; padding-left: 1.1rem; display: grid; gap: .2rem; }
+  .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+  .toggle { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); flex: none; }
+  .errtxt { color: var(--err); }
+</style>

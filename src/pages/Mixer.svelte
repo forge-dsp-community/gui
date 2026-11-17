@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from "../lib/i18n/index.svelte";
-  import { app, inDefault, inPos, inNameRaw, outName, outNameRaw, setInName, setOutName, write } from "../lib/app.svelte";
+  import { outHidden, app, inDefault, inPos, inNameRaw, outName, outNameRaw, setInName, setOutName, write } from "../lib/app.svelte";
   import { inputsLeftFirst, limitsOf, MIXER_BUS_COLUMNS, MIXER_BUS_ROWS, MIXER_INPUTS, mixerRowOfOutput, sourceNames, sumsActive,
     sumsMapping, sumsShares, vuToDb } from "../lib/device";
   import Knob from "../components/Knob.svelte";
@@ -23,7 +23,7 @@
   const analogCount = $derived(Math.min(MIXER_INPUTS, d.gain.in.length || 6));
   const analog = $derived(inputsLeftFirst(analogCount));                                  // left before right
   const digital = $derived(inputsLeftFirst(MIXER_INPUTS).filter((g) => g > analogCount));
-  const outs = $derived(d.gain.out.map((_, i) => i + 1));
+  const outs = $derived(d.gain.out.map((_, i) => i + 1).filter((c) => !outHidden(c)));   // #42
   const SUM = ["A", "B"];
 
   const val = (c: number, g: number) => grid[c]?.[g];

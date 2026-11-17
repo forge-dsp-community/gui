@@ -3,7 +3,8 @@
 name: desktop
 on:
   push:
-    tags: ["v*"]
+    # no desktop packages for pre-releases (v1.5.0-beta.1): the MSI takes only numeric versions
+    tags: ["v*", "!v*-*"]
   workflow_dispatch:
 
 permissions:

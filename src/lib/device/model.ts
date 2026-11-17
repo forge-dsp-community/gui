@@ -107,6 +107,8 @@ export interface DeviceState {
   uptime: { ms: number; at: number } | null;
   /** ms remote out stays on after ACC off, outputs muted (system.shutdown.hold, forge-dsp-firmware#68); null = none */
   shutdownHold: number | null;
+  /** S/PDIF output (system.spdif.out, forge-dsp-firmware#82): 0 input scan, 1 DSP outputs 7/8; null = not supported */
+  spdifOut: number | null;
   /** GALA (forge-dsp-firmware#71): system.kmh = speed, volume and bass boost (0.1 dB), source
    * (255 = no GALA block on); null = not read (only while the device page watches it) */
   speed: { kmh: number; vol: number; bass: number; source: number } | null;
@@ -143,6 +145,7 @@ export function emptyState(): DeviceState {
     startup: null,
     uptime: null,
     shutdownHold: null,
+    spdifOut: null,
     speed: null,
   };
 }
@@ -252,6 +255,9 @@ export function applyAnswer(s: DeviceState, a: Answer): boolean {
           return false;
         case "shutdown":
           if (p.length === 3 && p[2] === "hold") { s.shutdownHold = num(v); return true; }
+          return false;
+        case "spdif":
+          if (p.length === 3 && p[2] === "out") { s.spdifOut = num(v); return true; }
           return false;
         case "startup":
           if (p.length === 3 && p[2] === "time") { s.startup = nums(v); return true; }

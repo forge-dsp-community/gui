@@ -43,6 +43,8 @@ jobs:
           v="$base"; [ "$n" = 0 ] || v="$base-$n-g${GITHUB_SHA::7}"
           [ "$n" -gt 999 ] && n=999
           code=$(( ((x*100+y)*100+z)*1000 + n ))
+          # pre-release tag (1.5.0-beta.3): below the final 1.5.0, so Android updates from the beta to it
+          if [[ "$base" == *-* ]]; then b=$(grep -o '[0-9]*$' <<<"$base"); code=$(( code - 500 + ${b:-0} )); fi
           if [ -n "$KEYSTORE" ]; then
             echo "$KEYSTORE" | base64 -d > "$RUNNER_TEMP/release.jks"
             export ANDROID_KEYSTORE_FILE="$RUNNER_TEMP/release.jks"
@@ -75,8 +77,11 @@ jobs:
           v="${GITHUB_REF_NAME#v}"
           notes=()
           [ -f "docs/releases/$v.md" ] && notes=(--notes-file "docs/releases/$v.md")
+          # a pre-release (tag with "-", e.g. v1.5.0-beta.1) is never "latest": the self-update of the app
+          # asks releases/latest and does not offer it
+          pre=(); [[ "$v" == *-* ]] && pre=(--prerelease)
           # the desktop workflow may create it at the same time
-          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Forge DSP GUI $v" "${notes[@]}" || gh release view "$GITHUB_REF_NAME" >/dev/null
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || gh release create "$GITHUB_REF_NAME" --title "Forge DSP GUI $v" "${pre[@]}" "${notes[@]}" || gh release view "$GITHUB_REF_NAME" >/dev/null
           gh release upload "$GITHUB_REF_NAME" --clobber out/*.apk
           # the APK into SHA256SUMS (the desktop workflow writes the rest; the app checks against it)
           (cd out && sha256sum *.apk) > "$RUNNER_TEMP/own"

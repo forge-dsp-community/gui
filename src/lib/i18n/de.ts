@@ -1205,6 +1205,20 @@ export const DE = {
   "factory.restored": "Versorgungs-Kalibrierung wieder eingetragen.",
   "factory.close": "Schließen",
   "app.connectionLost": "Verbindung zum Forge verloren ({why}). Wieder anstecken bzw. einschalten und neu verbinden.",
+  "spdif.title": "S/PDIF-Ausgang",
+  "spdif.intro": "Der optische Port 2 kann als S/PDIF-Ausgang dienen (Jumper JP1 und Sendermodul). Er gibt aus, was der zweite S/PDIF-Baustein wählt.",
+  "spdif.scan": "Eingänge abtasten (Standard)",
+  "spdif.scanHint": "Wie im Original: Der Baustein prüft reihum die digitalen Eingänge auf Signal; der Ausgang trägt wechselnd diese Eingänge vor dem DSP.",
+  "spdif.dsp": "Signal hinter dem DSP",
+  "spdif.dspHint": "Der Ausgang trägt die Ausgänge 7/8 mit Mixer, Filtern, EQ, Laufzeit und Pegel. Die Signal-Erkennung meldet dann nur den gewählten Eingang.",
+  "spdif.refused": "Der Forge lehnt ab: {err} (nötig: Firmware ab 2.7, zweiter S/PDIF-Baustein, Vierkanal-Option aus).",
+  "spdif.hwJumper": "Hardware: am optischen Port 2 ein Sendermodul (TOTX) und JP1-Brücken 1–2, 3–5, 7–8; nie zusätzlich 1–3 oder 5–7 (Kurzschluss).",
+  "spdif.outs": "Die Ausgänge 7/8 heißen jetzt „S/PDIF L/R“ (eigene Namen gehen vor). Was dort ankommt, bestimmt der Mixer.",
+  "spdif.mute": "Stummschalten der Ausgänge 7/8 wirkt im D/A-Wandler und damit nicht auf S/PDIF; dafür den Pegel herunterziehen.",
+  "spdif.cores": "Im Signalweg liegen der Eingangs-DSP (Mixer, zwei Filterketten) und vom dritten DSP nur die Kanäle 7/8. Dessen Filterplätze lassen sich auf 7/8 legen.",
+  "spdif.digitalOnly": "Ansicht „nur digital“",
+  "spdif.digitalOnlyHint": "Blendet die Analogausgänge 1–6 auf den Seiten Mixer, Filter & EQ und Laufzeit aus. Nur die Ansicht; die Einstellungen bleiben.",
+  "spdif.toPool": "Filterplätze verteilen …",
 } as const;
 
 export type Key = keyof typeof DE;

@@ -755,6 +755,15 @@ export function setMeter(source: MeterSource, sides: number[]) {
 }
 export const resetMeter = () => setMeter("outputs", DEFAULT_SIDES);
 
+/** view "digital only" (#42): with the S/PDIF output from the DSP, the pages show only its outputs */
+export const view = $state({ digitalOnly: typeof window !== "undefined" && (() => { try { return localStorage.getItem("digitalOnly") === "1"; } catch { return false; } })() });
+export function setDigitalOnly(on: boolean) {
+  view.digitalOnly = on;
+  try { localStorage.setItem("digitalOnly", on ? "1" : "0"); } catch { /* see above */ }
+}
+/** an output the pages leave out: the analog ones in the view "digital only" */
+export const outHidden = (ch: number) => view.digitalOnly && spdifFromDsp() && ch < 30 && !SPDIF_OUTS.includes(ch);
+
 // --- files on the microSD (forge-dsp-firmware#59) --------------------------------------------------
 let sdBusy = false;
 /**
@@ -923,7 +932,11 @@ export function cleanName(t: string): string {
   return v.trim();
 }
 
-export const outName = (ch: number) => app.device.channelNames[ch] || t("common.outputN", { n: ch });
+/** the outputs that carry the S/PDIF output in its DSP mode (forge-dsp-firmware#82: DA.IN.4 = core 3, 7/8) */
+export const SPDIF_OUTS = [7, 8];
+export const spdifFromDsp = () => app.device.spdifOut === 1;
+export const outName = (ch: number) =>
+  app.device.channelNames[ch] || (spdifFromDsp() && SPDIF_OUTS.includes(ch) ? `S/PDIF ${ch === SPDIF_OUTS[0] ? "L" : "R"}` : t("common.outputN", { n: ch }));
 export const inDefault = (n: number) => inputDefaultName(n, app.device.gain.in.length || 6);
 export const inNameRaw = (n: number) => (deviceHasInNames() ? app.device.inputNames![n] ?? "" : inNames[n] ?? "");
 export const inName = (n: number) => inNameRaw(n) || inDefault(n);
