@@ -12,6 +12,7 @@
   import { APP_SIZE, imageKnows, runsPcb30 } from "../lib/boot/client";
   import { HexError, parseHex } from "../lib/boot/ihex";
   import { runUpdate, STEP_LABEL, UpdateError, type Step } from "../lib/boot/update";
+  import { upd } from "../lib/boot/outcome.svelte";
   import { assetsFor, fetchAsset, loadReleases, variantOf, type Release } from "../lib/boot/releases";
 
   const d = $derived(app.device);
@@ -30,11 +31,7 @@
   let backup = $state(true);
   let understood = $state(false);
   let running = $state(false);
-  let steps = $state<{ step: Step; done?: number; total?: number }[]>([]);
-  let result = $state<{ ok: boolean; text: string; touched?: boolean; complete?: boolean } | null>(null);
   /** the backup of this update, kept until the page is left (offered as buttons as well) */
-  let saved = $state<{ flash: Uint8Array; eeprom: Uint8Array; flashName: string; eepromName: string } | null>(null);
-  let sdNote = $state("");
 
   $effect(() => {  // the clock generator tells PCB 3.0 from 4.x, both report "96ELN-4.0"
     if (port && app.status === "online" && hasClock === null && !running)
@@ -59,7 +56,7 @@
 
   /** a .hex (from the PC or a release) as the image to write; the checks below apply to both */
   async function useHex(name: string, text: () => Promise<string>) {
-    file = null; fileError = ""; result = null; understood = false;
+    file = null; fileError = ""; upd.result = null; understood = false;
     try {
       const image = parseHex(await text());
       if (!image.length) throw new HexError(t("firmware.fileContainsNoData"));
@@ -163,8 +160,8 @@
 
   const day = () => new Date().toISOString().slice(0, 10);
   function step(s: Step, done?: number, total?: number) {
-    const last = steps[steps.length - 1];
-    if (last?.step === s) { last.done = done; last.total = total; } else steps.push({ step: s, done, total });
+    const last = upd.steps[upd.steps.length - 1];
+    if (last?.step === s) { last.done = done; last.total = total; } else upd.steps.push({ step: s, done, total });
   }
 
   async function start() {
@@ -173,7 +170,7 @@
       ? t("firmware.writeFirmwareNameForge", { name: file.name }) + "\n\n" + t("firmware.originalFirmwareCannotStart")
       : t("firmware.writeFirmwareNameForge2", { name: file.name }) + "\n\n" + t("firmware.musicStopsMeanwhileDo");
     if (!confirm(msg)) return;
-    running = true; steps = []; result = null; saved = null; sdNote = "";
+    running = true; upd.steps = []; upd.result = null; upd.saved = null; upd.sdNote = "";
     androidKeepScreenOn(true);
     const name = (what: string) => `forge-${identity || "unbekannt"}-${what}-${day()}.bin`;
     try {
@@ -184,7 +181,7 @@
           onState: (s) => { if (flow) flow.state = s; } } };
         const ok = await waitForBootloader(flow.ctl);
         flow = null;
-        if (!ok) { result = { ok: false, text: t("firmware.cancelled") }; return; }
+        if (!ok) { upd.result = { ok: false, text: t("firmware.cancelled") }; return; }
       }
       app.exclusive = true;
       if (app.bootloader) {
@@ -194,10 +191,10 @@
         const b = app.bootloader;
         if (!b?.flash || !b.eeprom) throw new UpdateError(`${t("firmware.reading")}: ${b?.error || t("common.notConnected")}`, "read", false);
         step("read", 1, 1);
-        saved = { flash: b.flash, eeprom: b.eeprom, flashName: name("flash"), eepromName: name("eeprom") };
+        upd.saved = { flash: b.flash, eeprom: b.eeprom, flashName: name("flash"), eepromName: name("eeprom") };
         if (autoSave()) {   // the browser may block downloads that no click started: buttons below
-          download(b.flash, saved.flashName);
-          download(b.eeprom, saved.eepromName);
+          download(b.flash, upd.saved.flashName);
+          download(b.eeprom, upd.saved.eepromName);
         }
       }
       let onCard = false;
@@ -207,9 +204,9 @@
         try {
           const r = await withSd((l) => sdBackup(l, sd!.info, (i, parts) => step("sdbackup", i, parts.length)));
           onCard = true;
-          sdNote = t("firmware.savedMemoryCardForge", { slot: r.slot, files: r.parts.map((p) => p.file).join(", ") });
+          upd.sdNote = t("firmware.savedMemoryCardForge", { slot: r.slot, files: r.parts.map((p) => p.file).join(", ") });
         } catch (e) {
-          sdNote = t("firmware.backupCardFailedErr", { err: explain(e) });
+          upd.sdNote = t("firmware.backupCardFailedErr", { err: explain(e) });
         }
         app.exclusive = true;
       }
@@ -219,21 +216,21 @@
       const r = await runUpdate({ ...io,
         onStep: step,
         onBackup: (flash, eeprom) => {
-          saved = { flash, eeprom, flashName: name("flash"), eepromName: name("eeprom") };
+          upd.saved = { flash, eeprom, flashName: name("flash"), eepromName: name("eeprom") };
           if (autoSave()) {
-            download(flash, saved.flashName);
-            download(eeprom, saved.eepromName);
+            download(flash, upd.saved.flashName);
+            download(eeprom, upd.saved.eepromName);
           }
         },
       }, { image: file.image, backup: backup && !onCard && !app.bootloader, identity });
-      result = { ok: true, text: t("firmware.doneNBytesWritten", { n: r.written }) };
+      upd.result = { ok: true, text: t("firmware.doneNBytesWritten", { n: r.written }) };
       app.exclusive = false;
       sdChecked = false; sd = null;
       await reload();
       await usbFast();
     } catch (e) {
       const u = e instanceof UpdateError ? e : null;
-      result = { ok: false, text: u ? `${tx(STEP_LABEL[u.step])}: ${explain(u.message)}` : explain(e), touched: u?.flashTouched, complete: u?.complete };
+      upd.result = { ok: false, text: u ? `${tx(STEP_LABEL[u.step])}: ${explain(u.message)}` : explain(e), touched: u?.flashTouched, complete: u?.complete };
     } finally {
       flow = null;
       running = false; app.exclusive = false;
@@ -352,35 +349,35 @@
       {/if}
     {/if}
 
-    {#if steps.length}
+    {#if upd.steps.length}
       <ol class="steps">
-        {#each steps as s, i}
-          <li class:now={running && i === steps.length - 1}>
+        {#each upd.steps as s, i}
+          <li class:now={running && i === upd.steps.length - 1}>
             <span>{tx(STEP_LABEL[s.step])}</span>
             {#if pct(s) !== null}<progress value={s.done} max={s.total}></progress><span class="num muted">{pct(s)} %</span>{/if}
           </li>
         {/each}
       </ol>
     {/if}
-    {#if sdNote}<p class="small">{sdNote}</p>{/if}
-    {#if saved}
+    {#if upd.sdNote}<p class="small">{upd.sdNote}</p>{/if}
+    {#if upd.saved}
       <div class="saved">
-        <span class="muted small">{t("firmware.backupBeforeUpdateN", { n: saved.flash.length + saved.eeprom.length })}</span>
+        <span class="muted small">{t("firmware.backupBeforeUpdateN", { n: upd.saved.flash.length + upd.saved.eeprom.length })}</span>
         {#if !autoSave()}<span class="small">{t("firmware.saveBackupAfterUpdate")}</span>{/if}
         <div class="btns">
-          <button onclick={() => download(saved!.flash, saved!.flashName)}>{t("firmware.saveFlashBackup")}</button>
-          <button onclick={() => download(saved!.eeprom, saved!.eepromName)}>{t("firmware.saveEEPROMBackup")}</button>
+          <button onclick={() => download(upd.saved!.flash, upd.saved!.flashName)}>{t("firmware.saveFlashBackup")}</button>
+          <button onclick={() => download(upd.saved!.eeprom, upd.saved!.eepromName)}>{t("firmware.saveEEPROMBackup")}</button>
         </div>
       </div>
     {/if}
-    {#if result}
-      <div class="result" class:ok={result.ok} class:bad={!result.ok} role="status">
-        <p>{result.text}</p>
-        {#if result.complete}
+    {#if upd.result}
+      <div class="result" class:ok={upd.result.ok} class:bad={!upd.result.ok} role="status">
+        <p>{upd.result.text}</p>
+        {#if upd.result.complete}
           <p>{t("firmware.completeButStep")}</p>
-        {:else if result.touched}
+        {:else if upd.result.touched}
           <p>{t("firmware.oldFirmwareNoLonger")}</p>
-        {:else if !result.ok}
+        {:else if !upd.result.ok}
           <p>{t("firmware.nothingWasChangedDevice")}</p>
         {/if}
       </div>
