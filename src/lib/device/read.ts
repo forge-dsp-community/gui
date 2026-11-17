@@ -84,9 +84,13 @@ export async function readDevice(
       const used = await client.get("biquad.*.used", { until: "biquad.used", timeoutMs: 3000 }).catch(() => null);
       if (used?.some((a) => a.register === "biquad.used")) answers = used;
     }
-    for (let t = 0; t < 2 && !answers; t++) {
+    // the identity decides which registers follow (port firmware or original): more time for it, a slow
+    // line (Android VM, a Forge busy after a restart) answered it after the 1.5 s and every port register
+    // was skipped (#42)
+    const ident = reg === "system.firmware" || reg === "system.firmware.port";
+    for (let t = 0; t < (ident ? 3 : 2) && !answers; t++) {
       try {
-        answers = await client.get(reg);
+        answers = await client.get(reg, ident ? { timeoutMs: 4000 } : undefined);
       } catch { /* no answer */ }
     }
     if (!answers) continue;  // optional register
