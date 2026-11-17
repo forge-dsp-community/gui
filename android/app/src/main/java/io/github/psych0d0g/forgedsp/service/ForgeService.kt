@@ -67,13 +67,18 @@ class ForgeService : Service() {
     private var keepalive: Job? = null
 
     // --- own requests: answers by register ------------------------------------------------------
-    private class Waiter(val reg: String) {
+    private class Waiter(val reg: String, val isSet: Boolean) {
         val wild = reg.endsWith("*")
         val prefix = reg.removeSuffix("*")
         val lines = mutableListOf<Line>()
         val done = CompletableDeferred<Unit>()
         @Volatile var last = System.currentTimeMillis()
-        fun takes(l: Line) = if (wild) l.register.startsWith(prefix) else l.register == reg
+        /** #33: only the kind of answer this request gets: a get "<" (or "!"), a set "*" (or "!"); an event
+         *  or the confirmation of a GUI write to the same register answered a get of another app before */
+        fun takes(l: Line): Boolean {
+            val kindOk = if (isSet) l.kind == '*' || l.kind == '!' else l.kind == '<' || l.kind == '!'
+            return kindOk && (if (wild) l.register.startsWith(prefix) else l.register == reg)
+        }
     }
     private val waiters = CopyOnWriteArrayList<Waiter>()
     private val lineBuf = StringBuilder()
@@ -114,7 +119,7 @@ class ForgeService : Service() {
     suspend fun request(line: String, timeoutMs: Long = 1500, fromOutside: Boolean = false): List<Line> {
         if (quiet || status != Status.ONLINE && !fromOutside && status != Status.CONNECTING) return emptyList()
         val reg = Line.requestRegister(line) ?: return emptyList()
-        val w = Waiter(reg)
+        val w = Waiter(reg, line.trimStart().startsWith("set"))
         waiters.add(w)
         try {
             if (!send((line.trimEnd() + "\r\n").toByteArray(Charsets.ISO_8859_1))) return emptyList()
