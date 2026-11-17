@@ -8,13 +8,7 @@
   import { saveFile } from "../lib/saveFile";
   import { androidKeepScreenOn } from "../lib/android";
 
-  type Cal = { fine: number | null; supply: number[] | null; vcc: number | null };
-  let phase = $state<"idle" | "confirm" | "running" | "done">("idle");
-  let before = $state<Cal | null>(null);
-  let after = $state<Cal | null>(null);
-  let err = $state("");
-  let waited = $state(0);
-  let restored = $state("");
+  import { fr, type Cal } from "../lib/device/factory.svelte";
 
   const MAINCLOCK = 68;   // MODC type "main clock": sets 1/2 = fine tune (int16)
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -43,24 +37,24 @@
   const same = (a: Cal | null, b: Cal | null) => !!a && !!b && JSON.stringify(a.supply) === JSON.stringify(b.supply) && a.vcc === b.vcc;
 
   async function open() {
-    err = ""; restored = "";
-    before = await readCal();
-    phase = "confirm";
+    fr.err = ""; fr.restored = "";
+    fr.before = await readCal();
+    fr.phase = "confirm";
   }
   function saveBackup() {
     saveFile(exportState(app.device), `forge-zustand-${model()}-${day()}.json`, "application/json");
-    saveFile(`Forge ${model()} - Kalibrierung vor dem Werks-Reset (${day()})\n${calText(before)}\n`, `forge-kalibrierung-${model()}-${day()}.txt`, "text/plain");
+    saveFile(`Forge ${model()} - Kalibrierung vor dem Werks-Reset (${day()})\n${calText(fr.before)}\n`, `forge-kalibrierung-${model()}-${day()}.txt`, "text/plain");
   }
   async function run() {
     if (!confirm(t("factory.confirmFinal"))) return;
-    phase = "running"; err = ""; waited = 0;
+    fr.phase = "running"; fr.err = ""; fr.waited = 0;
     app.exclusive = true;
     androidKeepScreenOn(true);
     try {
       // a slow line answers late (seen in the Android VM after 1.5 s): wait longer; without an answer
       // the reset may run all the same, so only an error answer (older firmware) stops here
       const r = await writeOnce("system.reinit", 1, 8000);
-      if (r && !/timeout|answer|antwort/i.test(r)) { err = r; phase = "confirm"; return; }
+      if (r && !/timeout|answer|antwort/i.test(r)) { fr.err = r; fr.phase = "confirm"; return; }
       // the Forge resets, erases and resets again (about 90 s); it answers again when through, at
       // 38400 Bd after its restart: the port is not exclusive meanwhile and the rate is checked each
       // round (the Android service may have switched to the fast rate between the two restarts)
@@ -69,7 +63,7 @@
       let up = false;
       while (!up && Date.now() - t0 < 300000) {
         await sleep(3000);
-        waited = Math.round((Date.now() - t0) / 1000);
+        fr.waited = Math.round((Date.now() - t0) / 1000);
         if (Date.now() - t0 < 20000) continue;
         await recoverRate();
         up = (await query("system.ping")).some((a) => a.kind === "get");
@@ -81,58 +75,58 @@
           up = (await query("system.ping")).some((a) => a.kind === "get");
         }
       }
-      if (!up) { err = t("factory.noAnswer"); phase = "confirm"; return; }
+      if (!up) { fr.err = t("factory.noAnswer"); fr.phase = "confirm"; return; }
       app.exclusive = false;
       await reload();
       if (app.device.identity.port === null) await reload();   // a restart came in between: once more
-      after = await readCal();
-      phase = "done";
+      fr.after = await readCal();
+      fr.phase = "done";
     } finally {
       app.exclusive = false;
       androidKeepScreenOn(false);
     }
   }
   async function restoreCal() {
-    if (!before?.supply || before.supply.every((x) => x === -1)) return;
-    const r = await writeOnce("system.supply.cal", before.supply);
-    restored = r || t("factory.restored");
-    if (!r) after = await readCal();
+    if (!fr.before?.supply || fr.before.supply.every((x) => x === -1)) return;
+    const r = await writeOnce("system.supply.cal", fr.before.supply);
+    fr.restored = r || t("factory.restored");
+    if (!r) fr.after = await readCal();
   }
 </script>
 
 <section class="panel box danger">
   <h3>{t("factory.title")}</h3>
   <p class="muted small">{t("factory.intro")}</p>
-  {#if phase === "idle"}
+  {#if fr.phase === "idle"}
     <div><button class="bad" onclick={open} disabled={app.status !== "online"}>{t("factory.start")}</button></div>
-  {:else if phase === "confirm"}
+  {:else if fr.phase === "confirm"}
     <p class="small">{t("factory.deletes")}</p>
     <p class="small"><strong>{t("factory.keeps")}</strong></p>
-    <pre class="cal">{calText(before)}</pre>
+    <pre class="cal">{calText(fr.before)}</pre>
     <p class="small">{t("factory.noteDown")}</p>
-    {#if err}<p class="small errtxt">{err}</p>{/if}
+    {#if fr.err}<p class="small errtxt">{fr.err}</p>{/if}
     <div class="btns">
       <button onclick={saveBackup}>{t("factory.saveBackup")}</button>
       <button class="bad" onclick={run}>{t("factory.run")}</button>
-      <button onclick={() => (phase = "idle")}>{t("factory.cancel")}</button>
+      <button onclick={() => (fr.phase = "idle")}>{t("factory.cancel")}</button>
     </div>
-  {:else if phase === "running"}
-    <p class="small"><strong>{t("factory.running", { s: waited })}</strong></p>
-    <progress max="90" value={Math.min(waited, 90)}></progress>
+  {:else if fr.phase === "running"}
+    <p class="small"><strong>{t("factory.running", { s: fr.waited })}</strong></p>
+    <progress max="90" value={Math.min(fr.waited, 90)}></progress>
   {:else}
     <p class="small okt">{t("factory.done")}</p>
-    <pre class="cal">{calText(after)}</pre>
-    {#if same(before, after)}
+    <pre class="cal">{calText(fr.after)}</pre>
+    {#if same(fr.before, fr.after)}
       <p class="small okt">{t("factory.calKept")}</p>
     {:else}
       <p class="small errtxt">{t("factory.calChanged")}</p>
-      <pre class="cal">{calText(before)}</pre>
-      {#if before?.supply && !before.supply.every((x) => x === -1)}
+      <pre class="cal">{calText(fr.before)}</pre>
+      {#if fr.before?.supply && !fr.before.supply.every((x) => x === -1)}
         <div><button onclick={restoreCal}>{t("factory.restoreSupply")}</button></div>
       {/if}
-      {#if restored}<p class="small">{restored}</p>{/if}
+      {#if fr.restored}<p class="small">{fr.restored}</p>{/if}
     {/if}
-    <div><button onclick={() => (phase = "idle")}>{t("factory.close")}</button></div>
+    <div><button onclick={() => (fr.phase = "idle")}>{t("factory.close")}</button></div>
   {/if}
 </section>
 
