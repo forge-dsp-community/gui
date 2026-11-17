@@ -3,7 +3,7 @@
   // calibrations (main clock fine tune, supply calibration, VCC calibration) and the identity. As a
   // second safety net the calibrations are shown and offered as a file before, and compared after.
   import { t } from "../lib/i18n/index.svelte";
-  import { app, query, reload, writeOnce } from "../lib/app.svelte";
+  import { app, query, recoverRate, reload, writeOnce } from "../lib/app.svelte";
   import { exportState } from "../lib/device";
   import { saveFile } from "../lib/saveFile";
   import { androidKeepScreenOn } from "../lib/android";
@@ -59,13 +59,17 @@
     try {
       const r = await writeOnce("system.reinit", 1);
       if (r) { err = r; phase = "confirm"; return; }
-      // the Forge resets, erases and resets again (about 90 s); it answers again when through
+      // the Forge resets, erases and resets again (about 90 s); it answers again when through, at
+      // 38400 Bd after its restart: the port is not exclusive meanwhile and the rate is checked each
+      // round (the Android service may have switched to the fast rate between the two restarts)
+      app.exclusive = false;
       const t0 = Date.now();
       let up = false;
-      while (!up && Date.now() - t0 < 240000) {
+      while (!up && Date.now() - t0 < 300000) {
         await sleep(3000);
         waited = Math.round((Date.now() - t0) / 1000);
         if (Date.now() - t0 < 20000) continue;
+        await recoverRate();
         up = (await query("system.ping")).some((a) => a.kind === "get");
       }
       if (!up) { err = t("factory.noAnswer"); phase = "confirm"; return; }
