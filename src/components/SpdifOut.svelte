@@ -1,7 +1,7 @@
 <script lang="ts">
   // S/PDIF output behind the DSP (#42, forge-dsp-firmware#82): the second CT7302 sends DSP outputs 7/8
   // (core 3, after mixer, filters, delay, gain) at the optical port 2 instead of scanning the inputs.
-  import { t } from "../lib/i18n/index.svelte";
+  import { i18n, t } from "../lib/i18n/index.svelte";
   import { app, setDigitalOnly, view, writeOnce } from "../lib/app.svelte";
 
   const d = $derived(app.device);
@@ -9,6 +9,18 @@
   const known = $derived(d.spdifOut !== null);
   let err = $state("");
   let busy = $state(false);
+
+  // #44 (forge-dsp-firmware#83): kHz values of the firmware, 44/88/176 = 44.1/88.2/176.4
+  const RATES: [number, number][] = [[0, 0], [44, 44.1], [48, 48], [96, 96], [192, 192], [32, 32], [88, 88.2], [176, 176.4]];
+  const khz = (x: number) => x.toLocaleString(i18n.lang === "de" ? "de-DE" : "en-US");
+  let rateErr = $state("");
+  async function setRate(v: number) {
+    if (busy || d.spdifRate === v) return;
+    busy = true;
+    rateErr = await writeOnce("system.spdif.rate", v);
+    if (!rateErr) d.spdifRate = v;
+    busy = false;
+  }
 
   async function set(v: number) {
     if (busy || !known || d.spdifOut === v) return;
@@ -38,6 +50,15 @@
       <li>{t("spdif.mute")}</li>
       <li>{t("spdif.cores")}</li>
     </ul>
+    {#if d.spdifRate !== null}
+      <label class="row">
+        <span><strong>{t("spdif.rate")}</strong><small class="muted">{t("spdif.rateHint")}</small></span>
+        <select data-testid="spdif-rate" value={d.spdifRate} disabled={busy} onchange={(e) => setRate(Number(e.currentTarget.value))}>
+          {#each RATES as [v, label] (v)}<option value={v}>{v === 0 ? t("spdif.rateRef") : `${khz(label)} kHz`}</option>{/each}
+        </select>
+      </label>
+      {#if rateErr}<p class="small errtxt">{t("spdif.refused", { err: rateErr })}</p>{/if}
+    {/if}
     <label class="row">
       <span><strong>{t("spdif.digitalOnly")}</strong><small class="muted">{t("spdif.digitalOnlyHint")}</small></span>
       <input type="checkbox" class="toggle" checked={view.digitalOnly} onchange={(e) => setDigitalOnly(e.currentTarget.checked)} />

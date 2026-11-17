@@ -109,6 +109,8 @@ export interface DeviceState {
   shutdownHold: number | null;
   /** S/PDIF output (system.spdif.out, forge-dsp-firmware#82): 0 input scan, 1 DSP outputs 7/8; null = not supported */
   spdifOut: number | null;
+  /** its rate in kHz in the DSP mode (system.spdif.rate, forge-dsp-firmware#83): 0 = reference clock; null = not supported */
+  spdifRate: number | null;
   /** GALA (forge-dsp-firmware#71): system.kmh = speed, volume and bass boost (0.1 dB), source
    * (255 = no GALA block on); null = not read (only while the device page watches it) */
   speed: { kmh: number; vol: number; bass: number; source: number } | null;
@@ -146,6 +148,7 @@ export function emptyState(): DeviceState {
     uptime: null,
     shutdownHold: null,
     spdifOut: null,
+    spdifRate: null,
     speed: null,
   };
 }
@@ -263,6 +266,7 @@ export function applyAnswer(s: DeviceState, a: Answer): boolean {
           return false;
         case "spdif":
           if (p.length === 3 && p[2] === "out") { s.spdifOut = num(v); return true; }
+          if (p.length === 3 && p[2] === "rate") { s.spdifRate = num(v); return true; }
           return false;
         case "startup":
           if (p.length === 3 && p[2] === "time") { s.startup = nums(v); return true; }

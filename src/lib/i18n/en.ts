@@ -1220,5 +1220,8 @@ export const EN: Record<Key, string> = {
   "spdif.digitalOnly": "View “digital only”",
   "spdif.digitalOnlyHint": "Hides analog outputs 1–6 on the pages Mixer, Filters & EQ and Delay. Only the view; the settings stay.",
   "spdif.needsFw": "Needs firmware 2.7.0-beta.1 or newer; this firmware does not know the setting yet. Update on the Firmware page.",
+  "spdif.rate": "Output sample rate",
+  "spdif.rateHint": "The converter in the S/PDIF chip changes the rate. Many car receivers take only 44.1 or 48 kHz; transmitter modules often go up to 96 kHz only. Applies only while the signal after the DSP is selected.",
+  "spdif.rateRef": "as the DSP (reference clock)",
   "spdif.toPool": "Distribute filter places …",
 };

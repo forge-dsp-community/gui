@@ -591,3 +591,14 @@ describe("blocks of the device settings are not on the page of the control block
     expect([1, 9, 10, 11, 32].filter((n) => onDevicePage(s, n))).toEqual([9, 10, 32]);   // no ES9038PRO on a 96ELN
   });
 });
+
+describe("S/PDIF rate (#44, forge-dsp-firmware#83)", () => {
+  it("system.spdif.rate is read into spdifRate; unknown stays null", () => {
+    const s = emptyState();
+    expect(s.spdifRate).toBeNull();
+    expect(applyAnswer(s, parseAnswer(" <.1 system.spdif.rate=48")!)).toBe(true);
+    expect(s.spdifRate).toBe(48);
+    expect(applyAnswer(s, parseAnswer(" <.1 system.spdif.rate=0")!)).toBe(true);
+    expect(s.spdifRate).toBe(0);
+  });
+});

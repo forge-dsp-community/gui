@@ -1220,6 +1220,9 @@ export const DE = {
   "spdif.digitalOnly": "Ansicht „nur digital“",
   "spdif.digitalOnlyHint": "Blendet die Analogausgänge 1–6 auf den Seiten Mixer, Filter & EQ und Laufzeit aus. Nur die Ansicht; die Einstellungen bleiben.",
   "spdif.needsFw": "Braucht Firmware ab 2.7.0-beta.1; diese Firmware kennt die Einstellung noch nicht. Update auf der Seite Firmware.",
+  "spdif.rate": "Abtastrate am Ausgang",
+  "spdif.rateHint": "Der Wandler im S/PDIF-Baustein setzt die Rate um. Viele Empfänger im Auto nehmen nur 44,1 oder 48 kHz; Sendermodule schaffen oft nur bis 96 kHz. Gilt nur, solange das Signal hinter dem DSP gewählt ist.",
+  "spdif.rateRef": "wie der DSP (Referenztakt)",
   "spdif.toPool": "Filterplätze verteilen …",
 } as const;
 
