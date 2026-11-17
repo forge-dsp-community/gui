@@ -22,10 +22,11 @@ def recording(t0, t1):
     idx = []
     with open(os.path.join(RAW, "index.csv")) as f:
         for line in f:
-            t, name, off = line.strip().split(",")
-            idx.append((float(t), name, int(off)))
-    parts = []
-    for t, name, off in idx:
+            v = line.strip().split(",")
+            if len(v) == 4:
+                idx.append((float(v[0]), v[1], int(v[2]), int(v[3])))
+    parts, start = [], None
+    for t, name, off, tot in idx:
         if t >= t0 and t + 1.0 <= t1:
             p = os.path.join(RAW, name)
             if not os.path.exists(p):
@@ -33,16 +34,21 @@ def recording(t0, t1):
             with open(p, "rb") as fh:
                 fh.seek(off); b = fh.read(FS * 4)
             if len(b) == FS * 4:
+                if start is None:
+                    start = tot
+                elif tot != start + sum(len(x) for x in parts):
+                    break   # not contiguous
                 parts.append(np.frombuffer(b, "<i2").reshape(-1, 2) / 32768.0)
-    return np.concatenate(parts) if parts else None
+    return (np.concatenate(parts), start) if parts else None
 
 
 def measure(t0, t1, ch):
     """(f, H complex with latency, latency in samples) of channel ch from the window"""
     x = period(); n = len(x)
-    y = recording(t0, t1)
-    if y is None or len(y) < 2 * n:
+    rec = recording(t0, t1)
+    if rec is None or len(rec[0]) < 2 * n:
         return None
+    y, s0 = rec
     k = len(y) // n
     seg = y[:k * n, ch].reshape(k, n)
     X = np.fft.rfft(x)
@@ -53,7 +59,12 @@ def measure(t0, t1, ch):
     a, b, c = np.abs(r[p - 1]), np.abs(r[p]), np.abs(r[(p + 1) % n])
     frac = 0.5 * (a - c) / (a - 2 * b + c) if (a - 2 * b + c) != 0 else 0.0
     sign = 1.0 if r[p] >= 0 else -1.0
-    return np.fft.rfftfreq(n, 1 / FS), H, p + frac, sign
+    # latency against the endless stream: position in the period relative to the absolute sample count
+    lat = (p + frac + s0) % n
+    # H relative to the absolute phase as well (the window start shifts the period circularly)
+    f = np.fft.rfftfreq(n, 1 / FS)
+    H = H * np.exp(-2j * np.pi * f * (s0 % n) / FS)
+    return f, H, lat, sign
 
 
 def change(a, b):

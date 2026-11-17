@@ -398,7 +398,7 @@ def t07(r, f):
     rig.sh("dumpsys deviceidle force-idle >/dev/null"); time.sleep(25)
     ok, e = f.online()
     r.check("T07", "Bildschirm aus + Doze: Dienst antwortet", ok, e)
-    rig.sh("dumpsys deviceidle unforce >/dev/null; input keyevent 224"); time.sleep(2)
+    rig.sh("dumpsys deviceidle unforce >/dev/null"); rig.wake(); time.sleep(2)
 
 
 # --- T08 -----------------------------------------------------------------------------------------
@@ -844,7 +844,7 @@ def main():
     r = Run(); f = rig.Forge()
     r.say(f"Ziel {rig.SERIAL}: {rig.sh('getprop ro.product.name').strip()} {rig.sh('getprop ro.lineage.version').strip()}, "
           f"App {rig.sh(f'dumpsys package {rig.PKG} | grep -m1 versionName').strip()}")
-    rig.plug(); rig.accept_usb_dialog(wait=5)
+    rig.wake(); rig.plug(); rig.accept_usb_dialog(wait=5)
     if rig.wait_online(f, 15) is None:   # no permission yet (fresh install) or attach missed: plug in again
         rig.unplug(); time.sleep(3); rig.plug(); rig.accept_usb_dialog(wait=25)
     r.check("Start", "Forge über die App erreichbar", rig.wait_online(f, 90) is not None)

@@ -85,27 +85,38 @@ class ForgeService : Service() {
 
     private fun onBytes(b: ByteArray) {
         lastLine = System.currentTimeMillis()
-        gui?.invoke(b)
+        // bootloader (raw mode): every byte to the GUI as it comes
+        if (quiet) { gui?.invoke(b); return }
+        val toGui = java.io.ByteArrayOutputStream()
         synchronized(lineBuf) {
             for (x in b) {
                 val c = (x.toInt() and 0xFF).toChar()
                 if (c == '\n') {
                     val text = lineBuf.toString()
                     lineBuf.setLength(0)
-                    Line.parse(text)?.let { onLine(it) }
+                    val l = Line.parse(text)
+                    // #33: a line that answers a request of the service or of another app is theirs; the GUI
+                    // shares the line and took such answers for its own requests (lists read short, answers shifted)
+                    val taken = l != null && onLine(l)
+                    if (!taken) { toGui.write(text.toByteArray(Charsets.ISO_8859_1)); toGui.write('\n'.code) }
                 } else if (c != '\r' && lineBuf.length < 4096) lineBuf.append(c)
             }
         }
+        if (toGui.size() > 0) gui?.invoke(toGui.toByteArray())
     }
 
-    private fun onLine(l: Line) {
+    /** handles one line; true if a request of the service or of another app took it */
+    private fun onLine(l: Line): Boolean {
+        var taken = false
         for (w in waiters) if (w.takes(l)) {
             synchronized(w.lines) { w.lines.add(l) }
             w.last = System.currentTimeMillis()
             if (!w.wild) w.done.complete(Unit)
+            taken = true
         }
         if (l.isEvent) CommandReceiver.event(this, l.raw)
         if (master?.any { l.register == "event.$it.value" } == true) l.value?.trim()?.toIntOrNull()?.let { masterValue = it; notifyState(); volume?.onMaster(it) }
+        return taken
     }
 
     /** writes one line or raw bytes; serialised, the port takes one write at a time */

@@ -85,8 +85,15 @@ def tap(node):
     x, y = node["center"]; sh(f"input tap {x} {y}")
 
 
+def wake():
+    """screen on and unlocked (the VM may sit on the lock screen after a screen-off test)"""
+    sh("input keyevent 224; wm dismiss-keyguard; cmd statusbar collapse")
+    time.sleep(1)
+
+
 def accept_usb_dialog(always=True, wait=15):
     """the system dialogs on plugging in: 'Open … to handle …' / 'Allow … to access …'"""
+    wake()
     t0 = time.time(); done = False
     while time.time() - t0 < wait:
         q = ui_find("to handle", contains=True) or ui_find("to access", contains=True)

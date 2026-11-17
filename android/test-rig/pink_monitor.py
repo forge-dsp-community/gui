@@ -45,6 +45,22 @@ def periodic_file(path, db, period, seconds=300):
     return path
 
 
+def stream_player(period_path, stop):
+    """periodic noise as one endless raw stream into pw-play (no restarts: the phase of the period stays
+    fixed against the recording)"""
+    x = np.load(period_path[:-4] + ".npy")
+    blk = (np.clip(np.stack([x, x], 1), -1, 1) * 32767).astype("<i2").tobytes()
+    p = subprocess.Popen(["pw-play", "--raw", "--format", "s16", "--rate", str(FS), "--channels", "2", "--target", SINK, "-"],
+                         stdin=subprocess.PIPE)
+    try:
+        while not stop.is_set():
+            p.stdin.write(blk)
+    except (BrokenPipeError, OSError):
+        pass
+    finally:
+        p.terminate()
+
+
 def player(path, stop):
     while not stop.is_set():
         p = subprocess.Popen(["pw-play", "--target", SINK, path])
@@ -86,7 +102,8 @@ def main():
         path = periodic_file(os.path.join(here, "results", f"monitor_pink_p{a.periodic}.wav"), a.db, a.periodic)
     else:
         path = a.file or pink_file(os.path.join(here, "results", "monitor_pink.wav"), a.db)
-    stop = threading.Event(); threading.Thread(target=player, args=(path, stop), daemon=True).start()
+    stop = threading.Event()
+    threading.Thread(target=stream_player if a.periodic else player, args=(path, stop), daemon=True).start()
     setup_line_in()
     rec = None
     for _ in range(30):
@@ -99,7 +116,7 @@ def main():
         out("Line-In nicht frei"); return
     n = FS; win = np.hanning(n); fr = np.fft.rfftfreq(n, 1 / FS)
     masks = [(fr >= c / 2 ** (1 / 6)) & (fr < c * 2 ** (1 / 6)) for c in BANDS]
-    raw_f, raw_t0, raw_idx = None, 0, None
+    raw_f, raw_t0, raw_idx, total = None, 0, None, 0
     if a.raw:
         os.makedirs(a.raw, exist_ok=True); raw_idx = open(os.path.join(a.raw, "index.csv"), "a", buffering=1)
     out(f"start: rosa Rauschen {a.db:.0f} dBFS, Terzspektrum je Sekunde, Ausgang 1 = L, 2 = R")
@@ -114,11 +131,12 @@ def main():
                 if raw_f is None or now - raw_t0 > 300:
                     if raw_f:
                         raw_f.close()
-                    name = time.strftime("raw-%H%M%S.s16"); raw_f = open(os.path.join(a.raw, name), "ab"); raw_t0 = now
+                    raw_name = time.strftime("raw-%H%M%S.s16"); raw_f = open(os.path.join(a.raw, raw_name), "ab"); raw_t0 = now
                     old = sorted(x for x in os.listdir(a.raw) if x.startswith("raw-"))[:-3]
                     for x in old:
                         os.remove(os.path.join(a.raw, x))
-                raw_idx.write(f"{now - n / FS:.3f},{name},{raw_f.tell()}\n"); raw_f.write(b)
+                raw_idx.write(f"{now - n / FS:.3f},{raw_name},{raw_f.tell()},{total}\n"); raw_f.write(b)
+            total += n   # samples recorded so far (continuous: arecord has no gaps)
             row = [now]; bands = []
             for c in range(2):
                 row.append(20 * np.log10(y[:, c].std() + 1e-9))
