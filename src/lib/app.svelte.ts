@@ -64,7 +64,10 @@ let client: ForgeClient | null = null;
 
 function attach(t: Transport) {
   transport = t;
-  client = new ForgeClient(t);
+  // the Android app talks through its service (WebView bridge, USB of the head unit): answers take up to
+  // about a second there, sometimes longer while the Forge works through a long command; the 1.5 s of
+  // the browser made the read lose answers and shift the following ones (#42)
+  client = new ForgeClient(t, isAndroid() ? 4000 : 1500, isAndroid() ? 400 : 200);
   usbBaud = 38400;
   // two requests in a row without any line: page and Forge may be at different rates
   client.onMiss((n) => { if (n >= 2 && app.status !== "connecting") void recoverRate(); });
@@ -357,7 +360,7 @@ export async function usbFast() {
   await tr.setBaud(USB_FAST);
   usbBaud = USB_FAST;
   if ((await c.get("system.ping", { timeoutMs: 800 }).catch(() => [])).some((a) => a.kind === "get")) {
-    c.quietMs = 100;   // lines of a wildcard answer come some ms apart at this rate (#21)
+    c.quietMs = isAndroid() ? 400 : 100;   // lines of a wildcard answer come some ms apart at this rate (#21); Android: the bridge (#42)
     return;
   }
   // no answer at the fast rate: back (the Forge falls back by itself after 30 s at the latest)
@@ -368,7 +371,7 @@ export async function usbFast() {
 export async function usbSlow() {
   const tr = transport, c = client;
   if (!tr?.setBaud || !c || usbBaud === 38400) return;
-  c.quietMs = 200;
+  c.quietMs = isAndroid() ? 400 : 200;
   await c.set("system.baud.usb", 32, { timeoutMs: 600 }).catch(() => []);
   await new Promise((r) => setTimeout(r, 30));
   await tr.setBaud(38400);
@@ -379,7 +382,7 @@ export async function afterRestart() {
   const tr = transport, c = client;
   if (!tr || !c || app.demo) return;
   app.status = "reading";
-  if (usbBaud !== 38400 && tr.setBaud) { await tr.setBaud(38400); usbBaud = 38400; c.quietMs = 200; }
+  if (usbBaud !== 38400 && tr.setBaud) { await tr.setBaud(38400); usbBaud = 38400; c.quietMs = isAndroid() ? 400 : 200; }
   await new Promise((r) => setTimeout(r, 4000));
   for (let i = 0; i < 40 && !(await firmwareAnswers()); i++) await new Promise((r) => setTimeout(r, 1000));
   try {
@@ -414,13 +417,17 @@ export async function recoverRate() {
   recovering = true;
   try {
     const ping = (ms: number) => c.get("system.ping", { timeoutMs: ms }).then((a) => a.some((x) => x.kind === "get")).catch(() => false);
-    if (await ping(600)) return;
+    // a slow line is not a wrong rate: the Android app waits longer before it switches (#42; with 600 ms
+    // it switched on slow answers, and then the rate was really wrong)
+    const slow = isAndroid();
+    if (await ping(slow ? 3000 : 600)) return;
+    if (slow && (await ping(3000))) return;
     const now = usbBaud, other = now === USB_FAST ? 38400 : USB_FAST;
     await tr.setBaud(other);
     await tr.write("\r\n");
-    if (await ping(800)) {
+    if (await ping(slow ? 3000 : 800)) {
       usbBaud = other;
-      c.quietMs = other === USB_FAST ? 100 : 200;
+      c.quietMs = isAndroid() ? 400 : other === USB_FAST ? 100 : 200;
       lastTx = Date.now();
       if (other === 38400) await usbFast();   // and up again
     } else {
@@ -488,7 +495,7 @@ async function atFastRate(tr: Transport): Promise<boolean> {
   await tr.write("\r\n");
   if ((await client.get("system.ping", { timeoutMs: 600 }).catch(() => [])).some((a) => a.kind === "get")) {
     usbBaud = USB_FAST;
-    client.quietMs = 100;
+    client.quietMs = isAndroid() ? 400 : 100;
     lastTx = Date.now();
     return true;
   }
