@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
             // gui-ng#34: the service found the Forge again (plugged in, switched on) while the GUI is
             // offline: tell the GUI, it connects (the attach intent does not always reach the activity)
             var last: ForgeService.Status? = null
-            statusFn = { st ->
+            statusFn = { st: ForgeService.Status ->
                 if (st == ForgeService.Status.ONLINE && last != null && last != ForgeService.Status.ONLINE && !s.guiAttached)
                     runOnUiThread { if (::bridge.isInitialized) bridge.attached() }
                 last = st
