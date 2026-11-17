@@ -17,7 +17,7 @@ const K = new Uint32Array([
 export function sha256Sync(data: Uint8Array): Uint8Array {
   const h = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
   const len = data.length;
-  const total = (((len + 9) >> 6) + 1) << 6;   // padded to whole 64-byte blocks
+  const total = Math.ceil((len + 9) / 64) * 64;   // 0x80, padding and the 8-byte length in whole 64-byte blocks
   const buf = new Uint8Array(total);
   buf.set(data);
   buf[len] = 0x80;
