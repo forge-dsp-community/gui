@@ -60,7 +60,7 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
     }
 
     @JavascriptInterface
-    fun write(b64: String) { svc?.guiWrite(Base64.decode(b64, Base64.DEFAULT)) }
+    fun write(b64: String) { val s = svc; if (s == null) android.util.Log.i("ForgeAct", "write: no service"); s?.guiWrite(Base64.decode(b64, Base64.DEFAULT)) }
 
     /** raw bytes for the bootloader: the service keeps quiet meanwhile */
     @JavascriptInterface

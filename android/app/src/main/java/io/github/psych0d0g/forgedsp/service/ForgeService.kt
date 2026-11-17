@@ -84,6 +84,7 @@ class ForgeService : Service() {
     private val lineBuf = StringBuilder()
 
     private fun onBytes(b: ByteArray) {
+        android.util.Log.i("ForgeSvc", "recv ${b.size}")
         lastLine = System.currentTimeMillis()
         // bootloader (raw mode): every byte to the GUI as it comes
         if (quiet) { gui?.invoke(b); return }
@@ -125,8 +126,12 @@ class ForgeService : Service() {
     /** writes one line or raw bytes; serialised, the port takes one write at a time */
     @Synchronized
     private fun send(data: ByteArray): Boolean {
-        val l = link ?: return false
-        return runCatching { l.write(data) }.isSuccess
+        val l = link ?: run { android.util.Log.i("ForgeSvc", "send ${data.size}: no link"); return false }
+        val t0 = System.currentTimeMillis()
+        val r = runCatching { l.write(data) }
+        val txt = String(data, Charsets.ISO_8859_1).trim().take(40).filter { it.code in 32..126 }
+        android.util.Log.i("ForgeSvc", "send ${data.size} [$txt] ${System.currentTimeMillis() - t0} ms ${r.exceptionOrNull()?.toString() ?: "ok"} link=${l.hashCode()} thr=${Thread.currentThread().name}")
+        return r.isSuccess
     }
 
     /** a request of the service (or of another app): its answer lines; wildcard registers until quiet */
