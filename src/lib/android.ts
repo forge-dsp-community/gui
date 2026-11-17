@@ -33,6 +33,7 @@ interface Bridge {
   keepScreenOn?(on: boolean): void;
   recover?(): void;
   poll?(): string;
+  pollEvents?(): string;
 }
 
 const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as unknown as { ForgeAndroid?: Bridge }).ForgeAndroid ?? null) : null);
@@ -59,10 +60,12 @@ const goneFns: ((why: string) => void)[] = [];
 function pump() {
   const b = bridge();
   if (!b?.poll) return;
+  const fa = (window as unknown as { __forgeAndroid: Record<string, (...a: unknown[]) => void> }).__forgeAndroid;
   const s = b.poll();
-  if (s) (window as unknown as { __forgeAndroid: { data(b64: string): void } }).__forgeAndroid.data(s);
+  if (s) fa.data(s);
+  const ev = b.pollEvents?.();
+  if (ev && ev !== "[]") for (const [name, ...args] of JSON.parse(ev) as [string, ...unknown[]][]) if (name !== "kick") fa[name]?.(...args);
 }
-let pumpTimer: ReturnType<typeof setInterval> | null = null;
 
 const toB64 = (b: Uint8Array) => { let s = ""; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode(...b.subarray(i, i + 0x8000)); return btoa(s); };
 const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
@@ -99,7 +102,6 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
   const queue = new ByteQueue();
   const dec = new TextDecoder();
   onData = (bytes) => { queue.push(bytes); split.push(dec.decode(bytes, { stream: true })); };
-  if (b.poll && !pumpTimer) pumpTimer = setInterval(pump, 15);
   return {
     name: "USB (Android)",
     write: async (line) => b.write(toB64(new TextEncoder().encode(line))),
@@ -107,7 +109,7 @@ export async function openAndroidSerial(baud = 38400): Promise<Transport> {
     onClose: (fn) => goneFns.push(fn),
     bytes: { write: async (d) => b.writeRaw(toB64(d)), read: (ms) => queue.read(ms), flush: () => queue.flush() },
     async setBaud(r) { queue.flush(); b.setBaud(r); },
-    async close() { onData = null; if (pumpTimer) { clearInterval(pumpTimer); pumpTimer = null; } b.close(); },
+    async close() { onData = null; b.close(); },
   };
 }
 
@@ -161,3 +163,6 @@ export function androidUpdate(): AndroidUpdate | null {
 }
 export const checkAndroidUpdate = () => bridge()?.checkUpdate?.();
 export const installAndroidUpdate = () => bridge()?.installUpdate?.();
+
+// #42: the page fetches bytes and events itself (the UI thread of the app may hang in a slow frame)
+if (typeof window !== "undefined" && bridge()?.poll) { pump(); setInterval(pump, 15); }

@@ -23,24 +23,44 @@ import org.json.JSONObject
  */
 class Bridge(private val act: MainActivity, private val web: WebView) {
     private fun js(code: String) = web.post { web.evaluateJavascript(code, null) }
-    private fun settle(id: Int, err: String) = js("window.__forgeAndroid&&__forgeAndroid.settle($id,${JSONObject.quote(err)})")
+    /** an event for the page; with a GUI that fetches (poll) it waits in the queue, else it is pushed */
+    private fun event(name: String, vararg args: Any) {
+        val a = org.json.JSONArray().put(name); args.forEach { a.put(it) }
+        if (polling) { events.add(a.toString()); kick() }
+        else js("window.__forgeAndroid&&__forgeAndroid.$name(${args.joinToString(",") { if (it is String) JSONObject.quote(it) else it.toString() }})")
+    }
+    private fun kick() { if (kicked.compareAndSet(false, true)) js("window.__forgeAndroid&&__forgeAndroid.kick&&__forgeAndroid.kick()") }
+    private fun settle(id: Int, err: String) = event("settle", id, err)
     private val svc get() = act.service
 
-    fun attached() = js("window.__forgeAndroid&&__forgeAndroid.attached()")
+    fun attached() = event("attached")
 
     /** bytes of the Forge for the page (#42): the page fetches them itself (poll), every few ms and on a
      *  kick. Pushed through evaluateJavascript they waited for the UI thread, which a slow frame (here
      *  a 27 s swap of the VM's software renderer) holds: the GUI then read its port registers as missing. */
     private val inbox = java.util.concurrent.ConcurrentLinkedQueue<ByteArray>()
+    private val events = java.util.concurrent.ConcurrentLinkedQueue<String>()
     private val kicked = java.util.concurrent.atomic.AtomicBoolean(false)
+    /** the page fetches (a GUI from before this has no poll and keeps getting everything pushed) */
+    @Volatile private var polling = false
 
+    /** bytes of the Forge as base64 */
     @JavascriptInterface
     fun poll(): String {
+        polling = true
         kicked.set(false)
         if (inbox.isEmpty()) return ""
         val out = java.io.ByteArrayOutputStream()
         while (true) out.write(inbox.poll() ?: break)
         return Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+    }
+    /** queued events as a JSON array of [name, args...]; fetched after poll(), so the bytes come first */
+    @JavascriptInterface
+    fun pollEvents(): String {
+        if (events.isEmpty()) return "[]"
+        val a = StringBuilder("[")
+        while (true) { val e = events.poll() ?: break; if (a.length > 1) a.append(','); a.append(e) }
+        return a.append(']').toString()
     }
 
     @JavascriptInterface
@@ -61,8 +81,8 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
                 android.util.Log.i("ForgeAct", "open permitted act=${act.hashCode()} current=${MainActivity.current === act} finishing=${act.isFinishing}")
                 if (act.isFinishing || act.isDestroyed || MainActivity.current !== act) throw IllegalStateException("activity closed")
                 s.attachGui(this@Bridge,
-                    onData = { b -> inbox.add(b); if (kicked.compareAndSet(false, true)) js("window.__forgeAndroid&&__forgeAndroid.kick()") },
-                    onGone = { js("window.__forgeAndroid&&__forgeAndroid.gone()") })
+                    onData = { b -> if (polling) { inbox.add(b); kick() } else js("window.__forgeAndroid&&__forgeAndroid.data('${Base64.encodeToString(b, Base64.NO_WRAP)}')") },
+                    onGone = { event("gone") })
                 // the service connects first (handshake, fast rate); the GUI then talks through it.
                 // Without an answer (e.g. a waiting bootloader) the GUI looks for itself.
                 withTimeoutOrNull(8000) { while (s.status == ForgeService.Status.CONNECTING || s.status == ForgeService.Status.SEARCHING) delay(50) }
