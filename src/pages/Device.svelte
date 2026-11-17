@@ -168,8 +168,8 @@
   </section>
 {/each}
 
-<!-- forge-dsp-firmware#82: only with firmware that knows system.spdif.out -->
-{#if d.spdifOut !== null}<SpdifOut />{/if}
+<!-- forge-dsp-firmware#82: with every port firmware; before 2.7 (no system.spdif.out) locked with a hint -->
+{#if isPort(d) || d.spdifOut !== null}<SpdifOut />{/if}
 
 <!-- forge-dsp-firmware#81: system.reinit in every port build from 2.6.2 (older ones answer "unknown command") -->
 {#if isPort(d)}<FactoryReset />{/if}

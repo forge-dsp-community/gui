@@ -1218,5 +1218,6 @@ export const EN: Record<Key, string> = {
   "spdif.cores": "The signal path includes the input DSP (mixer, two filter chains) and of the third DSP only channels 7/8. Its filter places can be moved to 7/8.",
   "spdif.digitalOnly": "View “digital only”",
   "spdif.digitalOnlyHint": "Hides analog outputs 1–6 on the pages Mixer, Filters & EQ and Delay. Only the view; the settings stay.",
+  "spdif.needsFw": "Needs firmware 2.7.0-beta.1 or newer; this firmware does not know the setting yet. Update on the Firmware page.",
   "spdif.toPool": "Distribute filter places …",
 };

@@ -1218,6 +1218,7 @@ export const DE = {
   "spdif.cores": "Im Signalweg liegen der Eingangs-DSP (Mixer, zwei Filterketten) und vom dritten DSP nur die Kanäle 7/8. Dessen Filterplätze lassen sich auf 7/8 legen.",
   "spdif.digitalOnly": "Ansicht „nur digital“",
   "spdif.digitalOnlyHint": "Blendet die Analogausgänge 1–6 auf den Seiten Mixer, Filter & EQ und Laufzeit aus. Nur die Ansicht; die Einstellungen bleiben.",
+  "spdif.needsFw": "Braucht Firmware ab 2.7.0-beta.1; diese Firmware kennt die Einstellung noch nicht. Update auf der Seite Firmware.",
   "spdif.toPool": "Filterplätze verteilen …",
 } as const;
 

@@ -5,11 +5,13 @@
   import { app, setDigitalOnly, view, writeOnce } from "../lib/app.svelte";
 
   const d = $derived(app.device);
+  // a port firmware before 2.7 does not know system.spdif.out: section shown, choice locked
+  const known = $derived(d.spdifOut !== null);
   let err = $state("");
   let busy = $state(false);
 
   async function set(v: number) {
-    if (busy || d.spdifOut === v) return;
+    if (busy || !known || d.spdifOut === v) return;
     busy = true;
     err = await writeOnce("system.spdif.out", v);
     if (!err) d.spdifOut = v;
@@ -21,10 +23,11 @@
 <section class="panel box" data-testid="spdif-out">
   <h3>{t("spdif.title")} <span class="beta">beta</span></h3>
   <p class="muted small">{t("spdif.intro")}</p>
+  {#if !known}<p class="small warntxt" data-testid="spdif-needs-fw">{t("spdif.needsFw")}</p>{/if}
   <div class="choice" role="radiogroup" aria-label={t("spdif.title")}>
-    <label><input type="radio" name="spdifout" checked={d.spdifOut !== 1} disabled={busy} onchange={() => set(0)} />
+    <label><input type="radio" name="spdifout" checked={d.spdifOut !== 1} disabled={busy || !known} onchange={() => set(0)} />
       <span><strong>{t("spdif.scan")}</strong><small class="muted">{t("spdif.scanHint")}</small></span></label>
-    <label><input type="radio" name="spdifout" checked={d.spdifOut === 1} disabled={busy} onchange={() => set(1)} />
+    <label><input type="radio" name="spdifout" checked={d.spdifOut === 1} disabled={busy || !known} onchange={() => set(1)} />
       <span><strong>{t("spdif.dsp")}</strong><small class="muted">{t("spdif.dspHint")}</small></span></label>
   </div>
   {#if err}<p class="small errtxt">{t("spdif.refused", { err })}</p>{/if}
@@ -54,4 +57,5 @@
   .row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
   .toggle { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); flex: none; }
   .errtxt { color: var(--err); }
+  .warntxt { color: var(--warn); }
 </style>
