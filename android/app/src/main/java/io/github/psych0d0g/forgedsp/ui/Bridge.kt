@@ -33,6 +33,7 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
 
     @JavascriptInterface
     fun open(id: Int, @Suppress("UNUSED_PARAMETER") baud: Int) {
+        android.util.Log.i("ForgeAct", "open act=${act.hashCode()} bridge=${hashCode()} web=${web.hashCode()}")
         act.lifecycleScope.launch {
             val err = try {
                 val driver = UsbLink.find(act) ?: throw IllegalStateException("no Forge at the USB port")
@@ -42,6 +43,7 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
                     ?: throw IllegalStateException("service not available")
                 // an activity on its way out (recreated after the USB permission dialog) does not take the
                 // line from the new one (#42)
+                android.util.Log.i("ForgeAct", "open permitted act=${act.hashCode()} current=${MainActivity.current === act} finishing=${act.isFinishing}")
                 if (act.isFinishing || act.isDestroyed || MainActivity.current !== act) throw IllegalStateException("activity closed")
                 s.attachGui(this@Bridge,
                     onData = { b -> js("window.__forgeAndroid&&__forgeAndroid.data('${Base64.encodeToString(b, Base64.NO_WRAP)}')") },

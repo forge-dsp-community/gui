@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         current = this
+        android.util.Log.i("ForgeAct", "create ${hashCode()}")
         // test rig (android/test-rig): debug builds can be driven over the Chrome DevTools protocol
         if (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE != 0) WebView.setWebContentsDebuggingEnabled(true)
         web = WebView(this)
@@ -149,6 +150,7 @@ class MainActivity : ComponentActivity() {
     // the Forge was plugged in (USB_DEVICE_ATTACHED, singleTask)
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        android.util.Log.i("ForgeAct", "newIntent ${hashCode()}")
         bridge.attached()
     }
 
@@ -158,6 +160,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        android.util.Log.i("ForgeAct", "destroy ${hashCode()} current=${current === this}")
         if (current === this) current = null
         bridge.shutdown()
         runCatching { unbindService(conn) }
