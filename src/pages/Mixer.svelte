@@ -224,7 +224,7 @@
         {@const pair = Math.floor((o - 1) / 2)}
         <div class="ostrip" class:gap={o % 2 === 1 && o > 1}>
           <span class="chn num">{o}</span>
-          <span class="oname"><NameField value={outNameRaw(o)} placeholder={t("common.outputN", { n: o })} label={t("mixer.nameName", { name: t("common.outputN", { n: o }) })} onchange={(v) => setOutName(o, v)} /></span>
+          <span class="oname"><NameField value={outNameRaw(o)} placeholder={outHidden(o) ? "" : (outNameRaw(o) ? t("common.outputN", { n: o }) : outName(o))} label={t("mixer.nameName", { name: t("common.outputN", { n: o }) })} onchange={(v) => setOutName(o, v)} /></span>
           <DbFader value={d.gain.out[o - 1]} scale={d.scales.out} dim={!!d.mute[o - 1]} label={t("mixer.levelName", { name: outName(o) })} onchange={(r) => outGain(o, r)} />
           {#if d.limiter}
             <div class="lim" class:on={(d.limiter.t[o - 1] ?? 0) < 0} class:act={limiting(o)} title={t("mixer.limiterTitle")}>
