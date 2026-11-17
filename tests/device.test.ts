@@ -74,6 +74,18 @@ describe("readDevice", () => {
     expect(t.sent.filter((l) => l === "get.1 system.channel.in.*").length).toBe(1);
     expect(t.sent.indexOf("get.1 system.channel.in.*")).toBeGreaterThan(t.sent.lastIndexOf("get.1 system.firmware.port"));
   });
+  it("asks a port register again at the end when its answers got lost (#42)", async () => {
+    const t = new Recorded(fixture("V40-96ELN"));
+    let lost = 0;
+    const write = t.write.bind(t);
+    t.write = async (line: string) => {   // both tries of the read lose their answers
+      if (line.trim() === "get.1 system.channel.in.*" && lost++ < 2) { t.sent.push(line.trim()); return; }
+      return write(line);
+    };
+    const s = await readDevice(new ForgeClient(t, 100, 10));
+    expect(t.sent.filter((l) => l === "get.1 system.channel.in.*").length).toBe(3);
+    expect(s.inputNames).not.toBeNull();
+  });
   it("reads a V40-96ELN with the port firmware", async () => {
     const t = new Recorded(fixture("V40-96ELN"));
     const progress: number[] = [];

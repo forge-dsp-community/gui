@@ -73,6 +73,7 @@ export async function readDevice(
   const steps = [...STEPS];
   const skipped: { reg: string; port?: boolean; slow?: boolean }[] = [];
   let portRefused = false;   // original firmware: it answered "unknown command"
+  const missed: { reg: string; port?: boolean; slow?: boolean }[] = [];   // port registers without an answer
   for (let i = 0; i < steps.length; i++) {
     const { reg, port } = steps[i];
     onProgress({ done: i, total: steps.length, current: reg });
@@ -96,7 +97,10 @@ export async function readDevice(
       } catch { /* no answer */ }
     }
     if (reg === "system.firmware.port" && answers?.some((a) => a.kind === "error")) portRefused = true;
-    if (!answers) continue;  // optional register
+    if (!answers) {   // optional register, or an answer lost while connecting: a port register is asked once more at the end
+      if (port) missed.push(steps[i]);
+      continue;
+    }
     for (const a of answers) {
       applyAnswer(state, a);
       if (a.kind === "get" && SUBLISTS.includes(a.register) && Array.isArray(a.value))
@@ -112,12 +116,15 @@ export async function readDevice(
       if (a?.some((x) => x.kind === "error")) break;   // original firmware: right to skip them
       for (const x of a ?? []) applyAnswer(state, x);
     }
-    if (state.identity.port !== null)
-      for (const st of skipped) {
-        onProgress({ done: steps.length, total: steps.length, current: st.reg });
-        const a = await client.get(st.reg).catch(() => null);
-        for (const x of a ?? []) applyAnswer(state, x);
-      }
+  }
+  // port registers left out or without an answer (#42: the first connect after installing the Android app
+  // lost answers while the app restarted): once more, now that the identity is known
+  if (state.identity.port !== null && !portRefused) {
+    for (const st of [...skipped, ...missed]) {
+      onProgress({ done: steps.length, total: steps.length, current: st.reg });
+      const a = await client.get(st.reg).catch(() => null);
+      for (const x of a ?? []) applyAnswer(state, x);
+    }
   }
   onProgress({ done: steps.length, total: steps.length, current: "" });
   return state;
