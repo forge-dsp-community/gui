@@ -149,7 +149,7 @@ def main(runs, live_out=None):
     proto = rep.split("```")[1] if "```" in rep else ""
     if drop:
         names = [x.split("|", 1)[1] for x in drop]
-        proto = "\n".join(l for l in proto.splitlines() if not (l.strip().startswith("FEHLER") and any(n in l for n in names)))
+        proto = "\n".join(l for l in proto.splitlines() if not ((l.strip().startswith("FEHLER") or l.strip().startswith("OK")) and any(n in l for n in names)))
     head = [l for l in proto.splitlines() if l.startswith("Ziel ") or l.startswith("Forge-Firmware")]
     # reference level: first 5 s of the monitor
     allr = rows(0, 1e12)
@@ -165,6 +165,8 @@ def main(runs, live_out=None):
         steps.setdefault("T11", []).append((s["t0"], s["step"]))
     skip = set(open(os.path.join(d, "skip_shots.txt")).read().split()) if os.path.exists(os.path.join(d, "skip_shots.txt")) else set()
     shots = [x for x in data.get("shots", []) if x[0] not in skip]
+    # a run during which only the line-in's noise arrived: no level curves (they would show noise)
+    no_audio = os.path.exists(os.path.join(d, "no_audio"))
     sec = []
     for t in tests:
         vs = [v for v in vt if v[0] == t]
@@ -172,7 +174,7 @@ def main(runs, live_out=None):
         rowsh = "".join(f"<tr class='{'ok' if v[2] else 'bad'}'><td><span class='pill'>{'OK' if v[2] else 'Fehler'}</span></td>"
                         f"<td>{html.escape(v[1])}</td><td class='det'>{html.escape(v[3])}</td></tr>" for v in vs)
         ch = ""
-        if t in win:
+        if t in win and not no_audio:
             w = win[t]
             ch = curve(w[1], w[2], ref, steps.get(t, []))
             if w[4]:
@@ -183,7 +185,7 @@ def main(runs, live_out=None):
         sec.append(f"<section class='test' id='{t.lower()}'><header><h2><span class='tid'>{t}</span> {html.escape(NAMES.get(t, t))}</h2>"
                    f"<span class='state {'bad' if bad else 'ok'}'>{len(vs) - bad}/{len(vs)}</span></header>"
                    f"<table><tbody>{rowsh}</tbody></table>{ch}" + (f"<div class='shots'>{sh}</div>" if sh else "") + "</section>")
-    if live_out and live_curve:
+    if live_out and live_curve and not no_audio:
         sec.insert(0, live_curve.replace("%CURVE%", curve(t_start, _t.time(), ref)))
     nav = "".join(f"<a href='#{t.lower()}'>{t}</a>" for t in tests)
     sp = os.path.join(d, "spectral.html")
@@ -260,7 +262,7 @@ pre {{ background:var(--panel); border:1px solid var(--line); border-radius:6px;
 <div class="wrap">
 <header style="display:grid; gap:8px">
 <h1>Forge-App mit dem DEV-Forge</h1>
-<p class="muted">Testlauf {run}: Android-App (Debug-Build) in der VM avant4_virt, DEV-Forge 96ELN per USB durchgereicht, Ton 7,1 kHz über das USB-Audio des Forge, Ausgänge 1/2 am Line-In des PCs mitgeschnitten.</p>
+<p class="muted">Testlauf {run}: Android-App (Debug-Build) in der VM avant4_virt, DEV-Forge 96ELN per USB durchgereicht, rosa Rauschen (−12 dBFS) über das USB-Audio des Forge, Ausgänge am Line-In des PCs ausgewertet. Alle Einstellungen über die App.</p>{"<p style='border-left:3px solid #c77d00;padding:.4em .9em'>Audioprüfungen dieses Laufs entfernt: Während des Laufs kam am Line-In nur das Grundrauschen an (−42 dBFS, mit und ohne Signal gleich). Die Signalprüfungen werden nachgeholt, sobald der Messweg wieder Signal führt. Die Funktionsprüfungen der App gelten.</p>" if no_audio else ""}
 {status}
 <div class="sum"><span><span class="big">{ok}/{len(vt)}</span> Prüfungen bestanden</span>{"".join(f"<span>{html.escape(h)}</span>" for h in head)}</div>
 <nav>{nav}</nav>

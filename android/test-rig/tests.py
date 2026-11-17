@@ -30,6 +30,18 @@ def pink_rows(t0, t1):
     return rows
 
 
+NO_SIGNAL_DBFS = -36.0   # line-in noise floor about -42.5 dBFS (46 %); below this nothing arrives
+
+
+def signal_missing(r, test):
+    """true (and a failed precondition) when only the line-in's noise arrives"""
+    lv = level_at(time.time() - 10, time.time())
+    if lv and max(lv) >= NO_SIGNAL_DBFS:
+        return False
+    r.check(test, "Signal am Line-In (über dem Grundrauschen)", False, f"{lv} dBFS")
+    return True
+
+
 def level_at(t0, t1):
     """broadband level L/R (dBFS) of outputs 1/2 at the line-in, median over the window"""
     r = pink_rows(t0, t1)
@@ -121,6 +133,10 @@ class Run:
         self.windows.append((test, t0, t1, ev, expect_drop))
         if ev is None:
             self.say(f"   (kein Audio-Monitor für {test})"); return
+        lv = level_at(t0, t1)
+        if not lv or max(lv) < NO_SIGNAL_DBFS:
+            # only the line-in's own noise: there is nothing that could drop out, no statement possible
+            self.say(f"   (kein Signal am Line-In während {test}: {lv} dBFS, Durchlauf nicht prüfbar)"); return
         if expect_drop:
             self.say(f"   Audio {test}: {ev['dropouts']} Sekunden mit Einbruch > 20 dB (in diesem Test erwartet)")
         else:
@@ -470,6 +486,8 @@ def t11(r, f, cdp):
     r.say("T11 Filter/EQ/Gain/Mute/Delay live am Signal (rosa Rauschen, Änderungen über die GUI)")
     if level_at(time.time() - 3, time.time()) is None:
         r.check("T11", "Audio-Monitor läuft", False, "keine Spektren"); return
+    if signal_missing(r, "T11"):
+        return
     mutes = {o: f.get(f"mute.out.{o}")[0].get(f"mute.out.{o}") for o in range(1, 9)}
     OUT, CH, snr = find_route(f)
     r.say(f"   Messweg: Ausgang {OUT} -> Line-In {'LR'[CH]} ({snr:.0f} dB über dem Rauschen); die anderen Ausgänge stumm")
@@ -631,9 +649,8 @@ def t12(r, f, cdp):
     r.say("T12 Phasendreher, Laufzeit, Phase shift (Übertragungsfunktion mit Phase, periodisches rosa Rauschen)")
     if tf.period() is None or tf.recording(time.time() - 5, time.time()) is None:
         r.check("T12", "Monitor mit periodischem Rauschen und Rohaufnahme", False); return
-    lv = level_at(time.time() - 10, time.time())
-    if not lv or max(lv) < -36:
-        r.check("T12", "Signal am Line-In (über dem Grundrauschen)", False, f"{lv} dBFS"); return
+    if signal_missing(r, "T12"):
+        return
     S = Setup(r, f, cdp)
     try:
         def abc(apply, revert, win=16):
@@ -692,6 +709,8 @@ def t13(r, f, cdp):
     """loudness block on the measured output through the app: shelves against the formulas"""
     import numpy as np
     r.say("T13 Loudness über die App (Block 21 auf das Ausgangspaar des Messwegs)")
+    if signal_missing(r, "T13"):
+        return
     S = Setup(r, f, cdp)
     old = f.get(f"modc.{LD}")[0][f"modc.{LD}"]
     try:
@@ -712,6 +731,8 @@ def t14(r, f, cdp):
     """GALA through the app on the measured output: volume and bass boost by speed, back at 0 km/h"""
     import numpy as np, threading
     r.say("T14 GALA über die App (Block 22, Geschwindigkeit per system.kmh über die App)")
+    if signal_missing(r, "T14"):
+        return
     S = Setup(r, f, cdp)
     old_ld, old_ga = f.get(f"modc.{LD}")[0][f"modc.{LD}"], f.get(f"modc.{GA}")[0][f"modc.{GA}"]
     stop = threading.Event()
@@ -743,6 +764,8 @@ def t15(r, f, cdp):
     """a complex chain through the app: crossover, EQ bands and shelves together with loudness and GALA"""
     import numpy as np, threading
     r.say("T15 Komplexe Kette über die App: Weiche + EQ + Shelves + Loudness + GALA")
+    if signal_missing(r, "T15"):
+        return
     S = Setup(r, f, cdp)
     old_ld, old_ga = f.get(f"modc.{LD}")[0][f"modc.{LD}"], f.get(f"modc.{GA}")[0][f"modc.{GA}"]
     chain = [(9, 60, 0, 707, 0, 128), (9, 60, 0, 707, 0, 128), (1, 250, -40, 1000, 0, 128), (1, 2500, 30, 2000, 0, 128),
