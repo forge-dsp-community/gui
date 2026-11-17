@@ -82,6 +82,19 @@ describe("client", () => {
     expect(events).toEqual(["preset.loaded"]);
     expect(t.sent).toEqual(["get.1 system.ping\r\n", "set.1 gain.out.1=200\r\n"]);
   });
+  it("an error line of another register does not end a request (#42)", async () => {
+    // garbled line answered with an error, then the real answer
+    const t = new FakeForge((l) => (l.startsWith("get.1 system.spdif.out") ? [" !.1 sys#em.x unknown command", " <.1 system.spdif.out=1"] : []));
+    const c = new ForgeClient(t, 200, 20);
+    const r = await c.get("system.spdif.out");
+    expect(r.map((a) => a.kind)).toEqual(["get"]);
+    expect(r[0].value).toBe(1);
+  });
+  it("an error line of the same register still ends it", async () => {
+    const t = new FakeForge(() => [" !.1 system.spdif.out unknown command"]);
+    const c = new ForgeClient(t, 200, 20);
+    expect((await c.get("system.spdif.out"))[0].kind).toBe("error");
+  });
   it("collects wildcard answers and times out", async () => {
     const t = new FakeForge((l) => (l.includes("*") ? [' <.1 system.startup.1=""', ' <.1 system.startup.2=""'] : []));
     const c = new ForgeClient(t, 50, 20);

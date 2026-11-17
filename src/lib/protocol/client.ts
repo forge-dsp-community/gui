@@ -65,7 +65,13 @@ export class ForgeClient {
           // a line for another register (left over from before: the answer to an earlier request
           // that timed out, lines of a page that was reloaded) does not end a single request; taking
           // it would shift every following answer by one
-          if (!wild && !until && a.kind !== "error" && a.register !== reg) {
+          // the same for an error line of another register (#42: while the Android app connected, the Forge
+          // answered garbled lines with "unknown command"; such a line ended whatever request was
+          // waiting, which then counted as "not known" and was not asked again)
+          const prefix = reg.endsWith("*") ? reg.slice(0, -1) : reg;
+          const foreignError = a.kind === "error" && a.register !== "" && a.register !== reg && !a.register.startsWith(prefix)
+            && !(until && a.register === until);
+          if ((!wild && !until && a.kind !== "error" && a.register !== reg) || foreignError) {
             for (const f of this.listeners) f(a);
             return;
           }
