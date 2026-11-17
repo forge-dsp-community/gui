@@ -64,6 +64,10 @@ class Bridge(private val act: MainActivity, private val web: WebView) {
     @JavascriptInterface
     fun setBaud(baud: Int) { svc?.setBaud(baud) }
 
+    /** the service finds the rate of the Forge again (gui-ng#42) */
+    @JavascriptInterface
+    fun recover() { svc?.recover() }
+
     /** the GUI lets go; the service keeps the connection */
     @JavascriptInterface
     fun close() { svc?.detachGui() }

@@ -31,6 +31,7 @@ interface Bridge {
   installUpdate?(): void;
   debuggable?(): boolean;
   keepScreenOn?(on: boolean): void;
+  recover?(): void;
 }
 
 const bridge = (): Bridge | null => (typeof window !== "undefined" ? ((window as unknown as { ForgeAndroid?: Bridge }).ForgeAndroid ?? null) : null);
@@ -41,6 +42,8 @@ export const isAndroid = () => bridge() !== null;
 export const androidDebuggable = () => !!bridge()?.debuggable?.();
 /** screen stays on while true (no-op outside the app and with older apps) */
 export const androidKeepScreenOn = (on: boolean) => bridge()?.keepScreenOn?.(on);
+/** the service of the app looks for the rate of the Forge again (#42); false with older apps */
+export const androidRecover = () => { const b = bridge(); if (!b?.recover) return false; b.recover(); return true; };
 
 const waiting = new Map<number, (err: string) => void>();
 let nextId = 1;

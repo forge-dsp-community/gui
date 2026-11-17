@@ -177,6 +177,18 @@ class ForgeService : Service() {
 
     private suspend fun ping() = request("get.1 system.ping", 600).any { it.kind == '<' }
 
+    /** the GUI lost the line (gui-ng#42): the service finds the rate again; it alone switches the rate
+     *  in the app (the GUI switching it as well while the service connected left both sides apart) */
+    fun recover() {
+        scope.launch {
+            connectLock.withLock {
+                if (link == null || quiet) return@withLock
+                setStatus(Status.CONNECTING)
+                handshake()
+            }
+        }
+    }
+
     private suspend fun handshake() {
         val l = link ?: return
         send("\r\n".toByteArray())

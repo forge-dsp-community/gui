@@ -7,7 +7,7 @@ import { identifyFlash, type FlashId } from "./boot/identify";
 import { deviceError, explain } from "./errors";
 import { autoPort, openNativeSerial, portsNative, type PortInfo } from "./transport/native";
 import { isNative } from "./native";
-import { androidDebuggable, androidPresent, androidRefreshMaster, isAndroid, openAndroidSerial } from "./android";
+import { androidDebuggable, androidPresent, androidRecover, androidRefreshMaster, isAndroid, openAndroidSerial } from "./android";
 import { openSim, simFlavours } from "./transport/sim";
 import { openWebSocket } from "./transport/websocket";
 import { t } from "./i18n/index.svelte";
@@ -350,6 +350,9 @@ let usbBaud = 38400;
 let lastTx = 0;
 export async function usbFast() {
   const tr = transport, c = client;
+  // the Android app: its service switches the rate (it connected first); the GUI switching as well left
+  // both sides apart (#42)
+  if (isAndroid()) return;
   if (!tr?.setBaud || !c || usbBaud === USB_FAST) return;
   const ok = (await c.set("system.baud.usb", USB_FAST / 1200, { timeoutMs: 1000 }).catch(() => [])).some((a) => a.kind === "info");
   if (!ok) {
@@ -373,7 +376,8 @@ export async function usbFast() {
 /** back to 38400 (before a firmware update: the bootloader measures the rate itself) */
 export async function usbSlow() {
   const tr = transport, c = client;
-  if (!tr?.setBaud || !c || usbBaud === 38400) return;
+  // the Android app: the GUI does not know the rate the service set, so always (bootloader: 38400)
+  if (!tr?.setBaud || !c || (usbBaud === 38400 && !isAndroid())) return;
   c.quietMs = isAndroid() ? 400 : 200;
   await c.set("system.baud.usb", 32, { timeoutMs: 600 }).catch(() => []);
   await new Promise((r) => setTimeout(r, 30));
@@ -419,6 +423,11 @@ export async function recoverRate() {
   if (recovering || !tr?.setBaud || !c || app.bootloader || app.demo || app.exclusive) return;
   recovering = true;
   try {
+    if (isAndroid()) {   // the service finds the rate (#42); the GUI only waits for the answer
+      const ok = await c.get("system.ping", { timeoutMs: 3000 }).then((a) => a.some((x) => x.kind === "get")).catch(() => false);
+      if (!ok && androidRecover()) await new Promise((r) => setTimeout(r, 4000));
+      return;
+    }
     const ping = (ms: number) => c.get("system.ping", { timeoutMs: ms }).then((a) => a.some((x) => x.kind === "get")).catch(() => false);
     // a slow line is not a wrong rate: the Android app waits longer before it switches (#42; with 600 ms
     // it switched on slow answers, and then the rate was really wrong)
@@ -493,7 +502,7 @@ async function firmwareAnswers(tries = 2): Promise<boolean> {
 }
 /** the firmware answers at USB_FAST: stay there (usbFast then has nothing to do); else back to 38400 */
 async function atFastRate(tr: Transport): Promise<boolean> {
-  if (!tr.setBaud || !client) return false;
+  if (!tr.setBaud || !client || isAndroid()) return false;   // Android: the service found the rate
   await tr.setBaud(USB_FAST);
   await tr.write("\r\n");
   if ((await client.get("system.ping", { timeoutMs: 600 }).catch(() => [])).some((a) => a.kind === "get")) {
@@ -506,7 +515,9 @@ async function atFastRate(tr: Transport): Promise<boolean> {
   return false;
 }
 /** the page goes away (closed, reloaded): ask the Forge back to 38400, as far as the browser lets it */
-if (typeof window !== "undefined") window.addEventListener("pagehide", () => { void usbSlow().catch(() => undefined); });
+// (not in the Android app: the service keeps the line and its rate; the activity is recreated, e.g. after
+// the USB permission dialog, and that switch went right through its connect, #42)
+if (typeof window !== "undefined") window.addEventListener("pagehide", () => { if (!isAndroid()) void usbSlow().catch(() => undefined); });
 
 /** the bootloader on this port: already in contact (400 ms), or waiting at its start (autobaud for burstMs) */
 async function findBootloader(t: Transport, burstMs: number): Promise<Bootloader | null> {
