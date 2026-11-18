@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { app, inName, meter } from "../lib/app.svelte";
+  import { app, inName, meter, watchOutLevels } from "../lib/app.svelte";
   import { INPUT_PAIRS, vuSum, vuToDb } from "../lib/device";
   import { t } from "../lib/i18n/index.svelte";
 
@@ -12,6 +12,8 @@
   let shown = $state<[number, number]>([-200, -200]);
   let label = $state("");
   const outputs = $derived(app.device.vuOut !== null && meter.source === "outputs");
+  // the touch skin (Android app) hides this meter: then it needs no output levels
+  $effect(() => { if (outputs && document.documentElement.dataset.skin !== "touch") return watchOutLevels(); });
   const sideList = (side: number) => meter.sides.map((x, i) => (x === side ? i + 1 : 0)).filter(Boolean).join("/") || t("common.none");
 
   $effect(() => {

@@ -901,6 +901,15 @@ function isPollLine(text: string) {
 let speedWatch = false;
 export function watchSpeed(on: boolean) { speedWatch = on; }
 
+/** Output levels (system.vu.out) are read only while something shows them: the header meter on
+ *  outputs, the overview, the limiter marks of the mixer. Use as `$effect(() => watchOutLevels())`. */
+let outLevelUsers = 0;
+export function watchOutLevels(): () => void {
+  outLevelUsers++;
+  let done = false;
+  return () => { if (!done) { done = true; outLevelUsers--; } };
+}
+
 async function poll() {
   const c = client;
   if (!c || polling || app.status !== "online" || app.writing > 0 || app.exclusive || app.bootloader) return;
@@ -909,7 +918,7 @@ async function poll() {
   const regs: string[] = [];
   if (app.device.vu !== null) regs.push("system.vu");
   // output levels: the meter in the header shows their sum
-  if (app.device.vuOut !== null) regs.push("system.vu.out");
+  if (app.device.vuOut !== null && outLevelUsers > 0) regs.push("system.vu.out");
   if (speedWatch && tick % 5 === 0) regs.push("system.kmh");
   if (tick % STATUS_EVERY === 0) {
     for (const r of STATUS_REGS) if (!r.port || isPort(app.device)) regs.push(r.reg);

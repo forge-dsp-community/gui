@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from "../lib/i18n/index.svelte";
-  import { outHidden, app, inDefault, inPos, inNameRaw, outName, outNameRaw, setInName, setOutName, write } from "../lib/app.svelte";
+  import { outHidden, app, inDefault, inPos, inNameRaw, outName, outNameRaw, setInName, setOutName, watchOutLevels, write } from "../lib/app.svelte";
   import { inputsLeftFirst, limitsOf, MIXER_BUS_COLUMNS, MIXER_BUS_ROWS, MIXER_INPUTS, mixerRowOfOutput, sourceNames, sumsActive,
     sumsMapping, sumsShares, vuToDb } from "../lib/device";
   import Knob from "../components/Knob.svelte";
@@ -120,6 +120,7 @@
     el.value = which === "attack" ? String(v / 10) : String(v);
     write(`system.dsp.limiter.${which}`, v);
   }
+  $effect(() => { if (d.limiter) return watchOutLevels(); });  // limiter marks follow the output levels
   /** the output level reaches the threshold: the limiter works */
   const limiting = (o: number) => {
     const T = d.limiter?.t[o - 1] ?? 0, v = d.vuOut?.[o - 1];
