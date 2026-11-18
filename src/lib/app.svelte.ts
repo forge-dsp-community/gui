@@ -901,13 +901,15 @@ function isPollLine(text: string) {
 let speedWatch = false;
 export function watchSpeed(on: boolean) { speedWatch = on; }
 
-/** Output levels (system.vu.out) are read only while something shows them: the header meter on
- *  outputs, the overview, the limiter marks of the mixer. Use as `$effect(() => watchOutLevels())`. */
-let outLevelUsers = 0;
-export function watchOutLevels(): () => void {
-  outLevelUsers++;
+/** Levels are read only while something shows them. Inputs (system.vu): the header meter on inputs
+ *  (or without output levels), the overview. Outputs (system.vu.out): the header meter on outputs,
+ *  the overview, the limiter marks of the mixer. The header meter is hidden in the touch skin.
+ *  Use as `$effect(() => watchLevels("in"))`. */
+const levelUsers = { in: 0, out: 0 };
+export function watchLevels(kind: "in" | "out"): () => void {
+  levelUsers[kind]++;
   let done = false;
-  return () => { if (!done) { done = true; outLevelUsers--; } };
+  return () => { if (!done) { done = true; levelUsers[kind]--; } };
 }
 
 async function poll() {
@@ -916,9 +918,9 @@ async function poll() {
   if (typeof document !== "undefined" && document.hidden) return;
   tick++;
   const regs: string[] = [];
-  if (app.device.vu !== null) regs.push("system.vu");
+  if (app.device.vu !== null && levelUsers.in > 0) regs.push("system.vu");
   // output levels: the meter in the header shows their sum
-  if (app.device.vuOut !== null && outLevelUsers > 0) regs.push("system.vu.out");
+  if (app.device.vuOut !== null && levelUsers.out > 0) regs.push("system.vu.out");
   if (speedWatch && tick % 5 === 0) regs.push("system.kmh");
   if (tick % STATUS_EVERY === 0) {
     for (const r of STATUS_REGS) if (!r.port || isPort(app.device)) regs.push(r.reg);

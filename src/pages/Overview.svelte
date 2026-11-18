@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { app, inName, meter, outName, watchOutLevels, type PageId } from "../lib/app.svelte";
+  import { app, inName, meter, outName, watchLevels, type PageId } from "../lib/app.svelte";
   import { decodeStartup, formatUptime, INPUT_PAIRS, isPort, rawToDb } from "../lib/device";
   import Icon from "../components/Icon.svelte";
   import LevelBar from "../components/LevelBar.svelte";
@@ -12,7 +12,9 @@
   const activeBq = $derived(allBq.filter((b) => b.type !== 0 && (b.flags & 0x80) !== 0).length);
   const delayed = $derived(d.delay.out.filter((x) => x > 0).length);
   const go = (p: PageId) => (app.page = p);
-  $effect(() => watchOutLevels());  // the output panel shows their levels
+  // the input and output panels show their levels
+  $effect(() => watchLevels("in"));
+  $effect(() => watchLevels("out"));
   // start-up times and uptime (forge-dsp-firmware#67); the uptime runs on between two reads
   const start = $derived(decodeStartup(d.startup));
   let now = $state(Date.now());
