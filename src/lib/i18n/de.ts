@@ -4,6 +4,8 @@
 export const DE = {
   // common
   "common.device": "Gerät",
+  "common.saveAs": "Speichern unter",
+  "common.saveFailed": "Speichern fehlgeschlagen: {err}",
   "common.overview": "Übersicht",
   "common.mixer": "Mixer",
   "common.filtersEQ": "Filter & EQ",

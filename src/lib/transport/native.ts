@@ -34,15 +34,26 @@ export async function openNativeSerial(path: string, baud = 38400): Promise<Tran
     queue.push(b);
     split.push(dec.decode(b, { stream: true }));
   };
-  const openAt = (b: number) => invoke<void>("serial_open", { path, baud: b, onData });
-  await openAt(baud);
+  // #34: the reading thread reports a port that went away on its own (unplugged, Forge switched off)
+  const closed: ((why: string) => void)[] = [];
+  let open = true;
+  const onClose = new Channel<string>();
+  onClose.onmessage = (why) => {
+    if (!open) return;
+    open = false;
+    closed.forEach((f) => f(why || "port closed"));
+  };
+  await invoke<void>("serial_open", { path, baud, onData, onClose });
   const send = (data: Uint8Array) => invoke<void>("serial_write", { data: Array.from(data) });
   return {
     name: `USB (${path.replace(/^\/dev\//, "")})`,
     write: (line) => send(new TextEncoder().encode(line)),
     onLine: (fn) => listeners.push(fn),
     bytes: { write: send, read: (ms) => queue.read(ms), flush: () => queue.flush() },
-    async setBaud(b) { queue.flush(); await openAt(b); },
-    close: () => invoke<void>("serial_close"),
+    // the rate changes on the open port: closing and reopening raced the reading thread's handle
+    // ("busy"); bytes of the old rate are dropped before and after
+    async setBaud(b) { queue.flush(); await invoke<void>("serial_set_baud", { baud: b }); queue.flush(); },
+    onClose: (fn) => closed.push(fn),
+    close: () => { open = false; return invoke<void>("serial_close"); },
   };
 }

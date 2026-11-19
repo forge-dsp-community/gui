@@ -4,6 +4,8 @@ import type { Key } from "./de";
 export const EN: Record<Key, string> = {
   // common
   "common.device": "Device",
+  "common.saveAs": "Save as",
+  "common.saveFailed": "Saving failed: {err}",
   "common.overview": "Overview",
   "common.mixer": "Mixer",
   "common.filtersEQ": "Filters & EQ",
