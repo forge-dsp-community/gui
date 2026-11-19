@@ -14,11 +14,11 @@
 
   // curve: 0..KMH km/h, 0..top dB
   const KMH = 200, W = 320, H = 120, L = 30, B = 18;
-  const top = $derived(Math.max(1, p.outs ? p.volMax : 0, p.bassSlope ? p.bassMax : 0));
+  const top = $derived(Math.max(1, p.outs || p.sums ? p.volMax : 0, p.bassSlope ? p.bassMax : 0));
   const x = (k: number) => L + (k / KMH) * (W - L - 6);
   const y = (db: number) => H - B - (db / top) * (H - B - 6);
   const path = (f: (k: number) => number) => Array.from({ length: KMH / 2 + 1 }, (_, i) => `${i ? "L" : "M"}${x(i * 2).toFixed(1)},${y(f(i * 2)).toFixed(1)}`).join("");
-  const volPath = $derived(p.outs ? path((k) => galaBoost(p, k).vol) : "");
+  const volPath = $derived(p.outs || p.sums ? path((k) => galaBoost(p, k).vol) : "");
   const bassPath = $derived(p.bassSlope ? path((k) => galaBoost(p, k).bass) : "");
   const full = $derived(galaFullAt(p));
 
@@ -54,8 +54,8 @@
         <span class="muted">km/h → dB</span>
       </div>
       <p class="muted small">
-        {#if !p.outs && !p.bassSlope}{t("gala.nothing")}
-        {:else}{t("gala.summary", { start: p.start, slope: dec(p.volSlope), max: dec(p.volMax) })}{#if full !== null && p.outs}{" " + t("gala.fullAt", { kmh: full })}{/if}{/if}
+        {#if !p.outs && !p.sums && !p.bassSlope}{t("gala.nothing")}
+        {:else}{t("gala.summary", { start: p.start, slope: dec(p.volSlope), max: dec(p.volMax) })}{#if full !== null && (p.outs || p.sums)}{" " + t("gala.fullAt", { kmh: full })}{/if}{/if}
       </p>
       {#if p.source > 0}<p class="muted small">{t("gala.pulseHint")}</p>{/if}
     </div>

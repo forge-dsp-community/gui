@@ -1,7 +1,7 @@
 // MODC control blocks: modc.N = [enable, type, flags(4 bytes), event 1..4, sets(4 bytes)].
 // Names and help follow the dialogs of the original GUI; field meanings are given only where the
 // firmware sources document them (forge-dsp-firmware src/modc.c, docs/port-changes.md).
-import type { DeviceState, Modc } from "./model";
+import { modcTypeVersion, type DeviceState, type Modc } from "./model";
 import { t, tk, tx } from "../i18n/index.svelte";
 
 /** One input of a block's dialog; indices are 1-based as in the firmware (event 1..4, set 1..4, flags 1..4). */
@@ -162,6 +162,34 @@ export const MODC_TYPES: ModcType[] = [
     ] },
 ];
 export const modcType = (t: number) => MODC_TYPES.find((x) => x.type === t);
+
+/** GALA type version from which GALA (sets 4) and the volume block (flags 2) can act on the sums
+ * A/B, the mixer rows before the chains 35/36 (forge-dsp-firmware docs/port-changes.md, GALA) */
+export const SUMS_GALA_VERSION = 21;
+export const sumTargets = (s: DeviceState) => modcTypeVersion(s, 110) >= SUMS_GALA_VERSION;
+const SUMS = [tk("common.sumA"), tk("common.sumB")];
+/** fields shown only when the firmware has the sums as targets, inserted after the field `after` */
+const SUM_FIELDS: Record<number, { after: number; fields: Field[] }[]> = {
+  16: [
+    { after: 0, fields: [{ kind: "bits", of: "flags", i: 2, label: tk("modc.activeSums"), bits: SUMS }] },
+    { after: 4, fields: [{ kind: "bits", of: "flags", i: 2, label: tk("modc.correctionActs"), bits: ["", "", tk("modc.chosenSums")] }] },
+    { after: 6, fields: [{ kind: "bits", of: "flags", i: 2, label: tk("modc.balanceActs"), bits: ["", "", "", tk("modc.chosenSums")] }] },
+  ],
+  110: [{ after: 0, fields: [{ kind: "bits", of: "sets", i: 4, label: tk("modc.galaSums"), bits: SUMS }] }],
+};
+
+/** the dialog of a type on this device: with the sum fields when the firmware has them */
+export function typeFields(s: DeviceState, type: number): Field[] | undefined {
+  const f = modcType(type)?.fields;
+  const extra = SUM_FIELDS[type];
+  if (!f || !extra || !sumTargets(s)) return f;
+  const out: Field[] = [];
+  f.forEach((x, i) => {
+    out.push(x);
+    for (const e of extra) if (e.after === i) out.push(...e.fields);
+  });
+  return out;
+}
 export const modcName = (ty: number) => (ty === 0 ? t("modc.empty") : modcType(ty) ? tx(modcType(ty)!.name) : t("common.typeN", { n: ty }));
 export const emptyModc = (): Modc => ({ enable: 0, type: 0, flags: [0, 0, 0, 0], events: [0, 0, 0, 0], sets: [0, 0, 0, 0] });
 

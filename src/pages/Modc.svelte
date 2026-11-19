@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t, tx } from "../lib/i18n/index.svelte";
   import { app, outName, sendModc } from "../lib/app.svelte";
-  import { availableTypes, copyModc, DEVICE_TYPES, emptyModc, eventOptions, modcName, modcText, modcType, onDevicePage, type Modc } from "../lib/device";
+  import { availableTypes, copyModc, DEVICE_TYPES, emptyModc, eventOptions, modcName, modcText, modcType, onDevicePage, typeFields, type Modc } from "../lib/device";
   import Icon from "../components/Icon.svelte";
   import ModcFields from "../components/ModcFields.svelte";
   import GalaPanel from "../components/GalaPanel.svelte";
@@ -25,6 +25,7 @@
   let ldErr = $state("");
   const m = $derived(sel !== null ? d.modc[sel] : undefined);
   const mt = $derived(m ? modcType(m.type) : undefined);
+  const fields = $derived(m ? typeFields(d, m.type) : undefined);
 
   // the last block (start-up/shutdown delays) is fixed: its type and enable stay
   const fixed = (n: number | null) => n === total;
@@ -129,8 +130,8 @@
         </div>{/if}{:else}<p class="muted">{t("modc.fieldsTypeNotDescribed")}</p>{/if}
       <p class="muted small">{t("modc.blockOutputsItsResult", { n: 96 + sel })}</p>
 
-      {#if mt?.fields && !raw}
-        <ModcFields {m} fields={mt.fields} {events} {change} />
+      {#if fields && !raw}
+        <ModcFields {m} {fields} {events} {change} />
         {#if m.type === GALA_TYPE}{#key sel}<GalaPanel {m} />{/key}{/if}
       {:else}
         {#each [["events", t("common.event")], ["sets", "Set"], ["flags", "Flag"]] as const as [of, name]}
