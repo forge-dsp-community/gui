@@ -97,6 +97,7 @@
         {#if id.port}<span class="muted">({t("common.protocolV", { v: id.firmware })})</span>{/if}</dd>
       <dt>{t("common.sampleRate")}</dt><dd class="num">{id.sampleRate ? `${id.sampleRate / 1000} kHz` : "–"}</dd>
       <dt>{t("overview.serialNumber")}</dt><dd class="num">{serial || "–"}</dd>
+      <dt title={t("overview.productionNumberHint")}>{t("overview.productionNumber")}</dt><dd class="num" data-testid="production-number">{id.productionNumber ?? "–"}</dd>
     </dl>
   </section>
   <section class="panel tile">

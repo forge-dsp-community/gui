@@ -62,7 +62,7 @@ export function demoState(n = 1): DeviceState {
   s.pools = [[35, 1, 72, 1, 172], [36, 1, 72, 1, 172], [5, 2, 60, 3, 196], [6, 2, 60, 3, 196], [7, 2, 38, 1, 196], [8, 2, 38, 3, 196],
     [1, 3, 60, 3, 196], [2, 3, 60, 3, 196], [3, 3, 38, 1, 196], [4, 3, 38, 3, 196]].map(([ch, core, len, min, size]) => ({ ch, core, len, min, size }));
   s.limits = { biquad: [10, 22000, -120, 60, 1, 10000, 0, 22000], types: Array.from({ length: 23 }, (_, i) => i),
-    out: [5840, 3, 3, 3, 3, 2, 2, 2, 2], in: [5840, 1, 1, 1, 1, 1, 1], names: [16, 16] };
+    out: [2920, 3, 3, 3, 3, 2, 2, 2, 2], in: [2920, 1, 1, 1, 1, 1, 1], names: [16, 16] };
   s.inputNames = { 1: "", 2: "", 3: "", 4: "", 5: "", 6: "", 7: "PC", 8: "PC" };
   const blk = (enable: number, type: number, flags: number[], events: number[], sets: number[]) => ({ enable, type, flags, events, sets });
   s.modc = { 1: blk(1, 86, [0, 0, 0, 0], [0, 0, 0, 0], [255, 0, 127, 0]), 2: blk(1, 16, [255, 0, 0, 0], [58, 59, 0, 0], [255, 0, 0, 0]),
@@ -71,6 +71,7 @@ export function demoState(n = 1): DeviceState {
   s.preset = { loaded: 1, select: 255 };
   s.startup = [247, 486, 486, 492, 1198, 2134, 3030, 3926, 4934, 4936, 5209, 7180, 7181, 7183, 7227, 7406, 7543, 8470, 8470, 9576, 0];
   s.uptime = { ms: 3723000, at: Date.now() };
+  s.identity.productionNumber = "20000023";   // system.number (forge-dsp-firmware 2.8.0)
   s.clickless = 1;
   s.shutdownHold = 5000;
   s.supply = [3320, 13800];
@@ -225,6 +226,7 @@ export class DemoTransport implements Transport {
     else if (m[1] === "get") {
       const fixed: Record<string, string> = {
         "system.ping": '"pong"', "system.key.info": '"DEMO-96ELN-4.0-0000000000000000-CCBYNCSA-20261112-MDD"',
+        "system.number": '"20000023"',
         "system.feature.attributes.hw": "[110,96,63,63,2173,2173]", "system.errors": this.errors, "system.supply": "[3320,13800]",
         "i2c.1.scan": "[&H20,&H22,&H40,&H4E,&H68,&HA0,&HA8,&HE0]", "i2c.2.scan": "[&H68,&H6A,&H90,&HA0,&HA2]",
         "i2c.1.32.122": "&H04,&B00000100", "i2c.2.144.27": "&H01,&B00000001",

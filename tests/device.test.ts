@@ -103,11 +103,12 @@ describe("readDevice", () => {
     expect(s.mute[2]).toBe(1);
     expect(s.phase[3]).toBe(1);
     expect(s.delay.out[1]).toBe(48);
-    const groups = delayGroups(s);                           // 8 outputs on 2 DSPs, 5840 samples each
+    // 8 outputs on 2 DSPs; the recorded port (before 2.8.0) reports 5840 DSP words, the memory takes 2920 samples
+    const groups = delayGroups(s);
     expect(groups.map((g) => g.channels)).toEqual([[1, 2, 3, 4], [5, 6, 7, 8]]);
-    expect(groups.map((g) => g.budget)).toEqual([5840, 5840]);
-    expect(delayMax(s, groups[0], 1)).toBe(5840 - 48);       // what channel 2 uses is gone for channel 1
-    expect(delayMax(s, groups[0], 2)).toBe(5840);
+    expect(groups.map((g) => g.budget)).toEqual([2920, 2920]);
+    expect(delayMax(s, groups[0], 1)).toBe(2920 - 48);       // what channel 2 uses is gone for channel 1
+    expect(delayMax(s, groups[0], 2)).toBe(2920);
     expect(s.mixer.position).toBe(1);
     expect(s.mixer.values[1][3][2]).toBe(100);
     expect(s.mixer.values[1][4][1]).toBe(80);
@@ -118,7 +119,7 @@ describe("readDevice", () => {
     expect(modcTypeVersion(s, 0x6d)).toBe(20);              // analog mixer
     expect(s.channelNames[1]).toBe("Front L");
     expect(s.inputNames?.[7]).toBe("TV");                              // system.channel.in.N (#55)
-    expect(s.limits.out).toEqual([5840, 3, 3, 3, 3, 2, 2, 2, 2]);      // system.limits (#54)
+    expect(s.limits.out).toEqual([5840, 3, 3, 3, 3, 2, 2, 2, 2]);      // system.limits (#54), as reported before 2.8.0
     expect(delayGroups(s).map((g) => g.channels)).toEqual([[1, 2, 3, 4], [5, 6, 7, 8]]);
     expect(inputDelayGroup(s)?.channels).toEqual([1, 2, 3, 4, 5, 6]);
     expect(limitsOf(s).bqGain).toEqual([-120, 60]);
@@ -368,8 +369,8 @@ describe("input delays", () => {
     const g = inputDelayGroup(s)!;
     expect(g.channels).toEqual([1, 2, 3, 4, 5, 6]);            // the firmware lists 8, 7/8 mirror output delays
     s.delay.in = [100, 0, 0, 0, 0, 0, 0, 0];
-    expect(delayMax(s, g, 2, s.delay.in)).toBe(5840 - 100);
-    expect(delayMax(s, g, 1, s.delay.in)).toBe(5840);
+    expect(delayMax(s, g, 2, s.delay.in)).toBe(2920 - 100);
+    expect(delayMax(s, g, 1, s.delay.in)).toBe(2920);
     const none = emptyState();
     expect(inputDelayGroup(none)).toBeNull();
   });
@@ -600,5 +601,34 @@ describe("S/PDIF rate (#44, forge-dsp-firmware#83)", () => {
     expect(s.spdifRate).toBe(48);
     expect(applyAnswer(s, parseAnswer(" <.1 system.spdif.rate=0")!)).toBe(true);
     expect(s.spdifRate).toBe(0);
+  });
+});
+
+
+describe("production number and delay pool (forge-dsp-firmware 2.8.0, Prüfung 19.11.2026)", () => {
+  const ans = (line: string) => parseAnswer(line)!;
+  it("reads system.number of the port and the fifth field of key.info of the original 1.10", () => {
+    const s = emptyState();
+    applyAnswer(s, ans(' <.1 system.key.info="BNS-96ELN-4.0-2U2971090C000100-CCBYNCSA-20261118-MDD"'));
+    expect(s.identity.productionNumber).toBeNull();
+    applyAnswer(s, ans(' <.1 system.number="20000023"'));
+    expect(s.identity.productionNumber).toBe("20000023");
+    applyAnswer(s, ans(' <.1 system.number=""'));
+    expect(s.identity.productionNumber).toBeNull();
+    const o = emptyState();
+    applyAnswer(o, ans(' <.1 system.key.info="FAG-96ELN-4.0-5X08051717000F00-20000023-20180629-MD"'));
+    expect(o.identity.productionNumber).toBe("20000023");
+    expect(o.identity.model).toBe("96ELN");
+    const bad = emptyState();
+    applyAnswer(bad, ans(' <.1 system.number="30000000"'));
+    expect(bad.identity.productionNumber).toBeNull();
+  });
+  it("never offers more delay than the DSP memory takes", () => {
+    const s = emptyState();
+    expect(limitsOf(s).delayPool).toBe(2920);                       // original firmware: no system.limits
+    s.limits.out = [5840, 3, 3, 3, 3, 2, 2, 2, 2];                  // ports before 2.8.0 reported DSP words
+    expect(limitsOf(s).delayPool).toBe(2920);
+    s.limits.out = [2920, 3, 3, 3, 3, 2, 2, 2, 2];                  // 2.8.0
+    expect(limitsOf(s).delayPool).toBe(2920);
   });
 });

@@ -768,6 +768,8 @@ export const DE = {
   "overview.muted": "stumm",
   "overview.nameMutedLevelBefore": "{name} (stumm, Pegel vor dem DAC)",
   "overview.serialNumber": "Seriennummer",
+  "overview.productionNumber": "Fertigungsnummer",
+  "overview.productionNumberHint": "Vom Hersteller vergeben. Die Originalfirmware 1.10 zeigte sie an; ab Port-Firmware 2.8.0 wieder (set.1 system.number=… setzt sie von Hand).",
   "overview.notAvailable": "nicht verfügbar",
   "overview.on": "ein",
   "overview.nEntries": "{n} Einträge",

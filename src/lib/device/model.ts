@@ -1,7 +1,7 @@
 import type { Answer } from "../protocol/answer";
 import { t, tk, tx } from "../i18n/index.svelte";
 import type { Value } from "../protocol/request";
-import { limitsOf, type Limits } from "./limits";
+import { DELAY_POOL, limitsOf, type Limits } from "./limits";
 
 /** `gain.*.scale` = [min, max, raw value of 0 dB, dB per step, dB at min(, channels)] */
 export interface GainScale {
@@ -52,6 +52,9 @@ export interface DeviceState {
     modcBlocks: number;
     /** identities this build can take (port only) */
     keyInfoList: string[];
+    /** production number ("Fertigungsnummer"), 8 digits: system.number of the port (forge-dsp-firmware 2.8.0),
+     * or from system.key.info of the original 1.10.x ("FAG-MODEL-PCB-<mcuid>-<number>-<date>-MD"); null = unknown */
+    productionNumber: string | null;
   };
   /** system.feature.attributes.<name> */
   features: Record<string, Value>;
@@ -119,7 +122,7 @@ export interface DeviceState {
 export function emptyState(): DeviceState {
   return {
     identity: { keyInfo: "", model: "", pcb: "", firmware: "", port: null, sampleRate: 0, analogInPairs: 0,
-      spdifPairs: 0, outPairs: 0, presets: 0, modcBlocks: 0, keyInfoList: [] },
+      spdifPairs: 0, outPairs: 0, presets: 0, modcBlocks: 0, keyInfoList: [], productionNumber: null },
     features: {},
     panes: {},
     scales: { out: null, in: null, spdif: null, mixer: null },
@@ -185,6 +188,16 @@ export function parseKeyInfo(key: string): { model: string; pcb: string } {
   return m ? { model: m[1], pcb: m[2] } : { model: "", pcb: "" };
 }
 
+/** production number: 8 digits, the first 1 or 2 (forge-dsp-firmware 2.8.0, system.number) */
+export const isProductionNumber = (v: string): boolean => /^[12]\d{7}$/.test(v);
+
+/** the original 1.10.x reports the production number as the fifth field of system.key.info
+ * (1.11.6000 and the port: "CCBYNCSA" there) */
+export function productionNumberOfKey(key: string): string | null {
+  const f = key.split("-")[4] ?? "";
+  return isProductionNumber(f) ? f : null;
+}
+
 /** the largest channel or slot index a single answer may set (#39: no holes far behind the list) */
 const MAX_INDEX = 64;
 function setIndexed(list: number[], index: number, v: Value | undefined) {
@@ -212,6 +225,7 @@ export function applyAnswer(s: DeviceState, a: Answer): boolean {
           else if (p[2] === "info" && p.length === 3) {
             s.identity.keyInfo = String(v);
             Object.assign(s.identity, parseKeyInfo(s.identity.keyInfo));
+            s.identity.productionNumber = productionNumberOfKey(s.identity.keyInfo) ?? s.identity.productionNumber;
           } else return false;
           return true;
         case "firmware":
@@ -275,6 +289,12 @@ export function applyAnswer(s: DeviceState, a: Answer): boolean {
           const k = nums(v);
           if (p.length !== 2 || k.length !== 4) return false;
           s.speed = { kmh: k[0], vol: k[1], bass: k[2], source: k[3] };
+          return true;
+        }
+        case "number": {   // forge-dsp-firmware 2.8.0: "" = not set
+          if (p.length !== 2) return false;
+          const n = String(v ?? "");
+          s.identity.productionNumber = isProductionNumber(n) ? n : null;
           return true;
         }
         case "uptime": {
@@ -420,7 +440,8 @@ export function delayGroups(s: DeviceState, l: Limits = limitsOf(s)): DelayGroup
   if (map && map.length > 1) {
     const by = new Map<number, number[]>();
     map.slice(1, s.delay.out.length + 1).forEach((dsp, i) => by.set(dsp, [...(by.get(dsp) ?? []), i + 1]));
-    return [...by.values()].sort((a, b) => a[0] - b[0]).map((channels) => ({ channels, budget: map[0] }));
+    // ports before 2.8.0 report 5840 DSP words: never more than the memory takes (limits.ts)
+    return [...by.values()].sort((a, b) => a[0] - b[0]).map((channels) => ({ channels, budget: Math.min(map[0], DELAY_POOL) }));
   }
   const groups: DelayGroup[] = [];
   for (let c = 1; c <= s.delay.out.length; c += l.delayPoolChannels)
@@ -440,7 +461,7 @@ export function delayMax(s: DeviceState, group: DelayGroup, ch: number, list: nu
  * delay memory of DSP 1. Empty on models without input delay. */
 export function inputDelayGroup(s: DeviceState, l: Limits = limitsOf(s)): DelayGroup | null {
   const map = s.limits.in;
-  if (map) return map.length > 1 ? { channels: map.slice(1).map((_, i) => i + 1), budget: map[0] } : null;  // [] = no input delays
+  if (map) return map.length > 1 ? { channels: map.slice(1).map((_, i) => i + 1), budget: Math.min(map[0], DELAY_POOL) } : null;  // [] = no input delays
   const n = Math.min(s.delay.in.length, s.gain.in.length);
   return n ? { channels: Array.from({ length: n }, (_, i) => i + 1), budget: l.delayPool } : null;
 }

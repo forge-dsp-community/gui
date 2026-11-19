@@ -16,6 +16,7 @@ const STEPS: { reg: string; port?: boolean; slow?: boolean }[] = [
   { reg: "system.firmware.port", port: true },
   { reg: "system.info" },
   { reg: "system.key.info.list", port: true },
+  { reg: "system.number", port: true },   // forge-dsp-firmware 2.8.0; older ports: unknown command
   { reg: "system.feature.attributes" },
   { reg: "system.limits", port: true },
   { reg: "system.gui.panes" },

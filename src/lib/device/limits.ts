@@ -16,7 +16,9 @@ export interface Limits {
   bqB: [number, number];
   /** mixer value (percent), mixer.scale */
   mixer: [number, number];
-  /** output delay: samples shared by the delay lines of one DSP, and channels per DSP */
+  /** output delay: samples shared by the delay lines of one DSP, and channels per DSP. 2920: the DSP memory
+   * holds 5840 words and the firmware stores every delay doubled; above 2920 the delay wrapped and acted as 0
+   * (forge-dsp-firmware 2.8.0, Prüfung 19.11.2026). The original and ports before 2.8.0 report or assume 5840. */
   delayPool: number;
   delayPoolChannels: number;
   /** characters of a channel name */
@@ -25,13 +27,16 @@ export interface Limits {
   types: number[] | null;
 }
 
+/** samples one DSP can delay in the units of delay.N */
+export const DELAY_POOL = 2920;
+
 export const DEFAULT_LIMITS: Limits = {
   freq: [10, 22000],
   bqGain: [-120, 60],
   bqQ: [1, 10000],
   bqB: [0, 22000],
   mixer: [0, 100],
-  delayPool: 5840,
+  delayPool: DELAY_POOL,
   delayPoolChannels: 4,
   nameLength: 16,
   types: null,
@@ -52,7 +57,8 @@ export function limitsOf(s: DeviceState): Limits {
     l.bqQ = [bq[4], bq[5]];
     l.bqB = [bq[6], bq[7]];
   }
-  if (s.limits.out?.length) l.delayPool = s.limits.out[0];
+  // ports before 2.8.0 reported the DSP words (5840): never more than the memory takes
+  if (s.limits.out?.length) l.delayPool = Math.min(s.limits.out[0], DELAY_POOL);
   if (s.limits.names?.length) l.nameLength = s.limits.names[0];
   if (s.limits.types?.length) l.types = s.limits.types;
   return l;

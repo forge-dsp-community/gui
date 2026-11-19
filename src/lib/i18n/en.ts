@@ -767,6 +767,8 @@ export const EN: Record<Key, string> = {
   "overview.levelMeterFromN": "Level meter from {n} dBFS",
   "overview.muted": "muted",
   "overview.nameMutedLevelBefore": "{name} (muted, level before the DAC)",
+  "overview.productionNumber": "Production number",
+  "overview.productionNumberHint": "Assigned by the manufacturer. The original firmware 1.10 showed it; port firmware 2.8.0 and later again (set.1 system.number=… sets it by hand).",
   "overview.serialNumber": "Serial number",
   "overview.notAvailable": "not available",
   "overview.on": "on",
