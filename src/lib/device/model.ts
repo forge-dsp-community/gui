@@ -52,7 +52,7 @@ export interface DeviceState {
     modcBlocks: number;
     /** identities this build can take (port only) */
     keyInfoList: string[];
-    /** production number ("Fertigungsnummer"), 8 digits: system.number of the port (forge-dsp-firmware 2.8.0),
+    /** production number ("Fertigungsnummer"), up to 3 letters and 8 digits: system.number of the port (forge-dsp-firmware 2.8.0),
      * or from system.key.info of the original 1.10.x ("FAG-MODEL-PCB-<mcuid>-<number>-<date>-MD"); null = unknown */
     productionNumber: string | null;
   };
@@ -188,8 +188,9 @@ export function parseKeyInfo(key: string): { model: string; pcb: string } {
   return m ? { model: m[1], pcb: m[2] } : { model: "", pcb: "" };
 }
 
-/** production number: exactly 8 digits, e.g. 20000023 (2018) or 00000042 (2016) (forge-dsp-firmware system.number) */
-export const isProductionNumber = (v: string): boolean => /^\d{8}$/.test(v);
+/** production number: up to 3 capital letters, then exactly 8 digits: 20000023 (2018), 00000042 (2016),
+ * ETD80422007 (ETON CORE D8) (forge-dsp-firmware system.number, #88) */
+export const isProductionNumber = (v: string): boolean => /^[A-Z]{0,3}\d{8}$/.test(v);
 
 /** the original 1.10.x reports the production number as the fifth field of system.key.info
  * (1.11.6000 and the port: "CCBYNCSA" there) */

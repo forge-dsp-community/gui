@@ -624,6 +624,11 @@ describe("production number and delay pool (forge-dsp-firmware 2.8.0, Prüfung 1
     expect(dev.identity.productionNumber).toBe("00000042");
     applyAnswer(dev, ans(' <.1 system.number="00000042"'));
     expect(dev.identity.productionNumber).toBe("00000042");
+    const eton = emptyState();   // ETON CORE D8 with its original firmware: letters before the digits (#88)
+    applyAnswer(eton, ans(' <.1 system.key.info="ETN-CORED8-4.1-5X08051700000E00-ETD80422007-20181012-MD"'));
+    expect(eton.identity.productionNumber).toBe("ETD80422007");
+    applyAnswer(eton, ans(' <.1 system.number="ABCD80422007"'));
+    expect(eton.identity.productionNumber).toBeNull();
     const bad = emptyState();
     applyAnswer(bad, ans(' <.1 system.number="2000002"'));
     expect(bad.identity.productionNumber).toBeNull();
