@@ -619,8 +619,13 @@ describe("production number and delay pool (forge-dsp-firmware 2.8.0, Prüfung 1
     applyAnswer(o, ans(' <.1 system.key.info="FAG-96ELN-4.0-5X08051717000F00-20000023-20180629-MD"'));
     expect(o.identity.productionNumber).toBe("20000023");
     expect(o.identity.model).toBe("96ELN");
+    const dev = emptyState();   // DEV unit with 1.10.5160 (2016): leading zeros
+    applyAnswer(dev, ans(' <.1 system.key.info="FAG-96ELN-4.0-2U2971090C000100-00000042-20160707-MDD"'));
+    expect(dev.identity.productionNumber).toBe("00000042");
+    applyAnswer(dev, ans(' <.1 system.number="00000042"'));
+    expect(dev.identity.productionNumber).toBe("00000042");
     const bad = emptyState();
-    applyAnswer(bad, ans(' <.1 system.number="30000000"'));
+    applyAnswer(bad, ans(' <.1 system.number="2000002"'));
     expect(bad.identity.productionNumber).toBeNull();
   });
   it("never offers more delay than the DSP memory takes", () => {

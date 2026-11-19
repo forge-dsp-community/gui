@@ -188,8 +188,8 @@ export function parseKeyInfo(key: string): { model: string; pcb: string } {
   return m ? { model: m[1], pcb: m[2] } : { model: "", pcb: "" };
 }
 
-/** production number: 8 digits, the first 1 or 2 (forge-dsp-firmware 2.8.0, system.number) */
-export const isProductionNumber = (v: string): boolean => /^[12]\d{7}$/.test(v);
+/** production number: exactly 8 digits, e.g. 20000023 (2018) or 00000042 (2016) (forge-dsp-firmware system.number) */
+export const isProductionNumber = (v: string): boolean => /^\d{8}$/.test(v);
 
 /** the original 1.10.x reports the production number as the fifth field of system.key.info
  * (1.11.6000 and the port: "CCBYNCSA" there) */
