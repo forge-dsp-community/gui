@@ -499,10 +499,31 @@ const SOURCES: Record<string, string[]> = {
   default: ["Bluetooth", "USB Audio", tk("device.sPDIFOptical1"), tk("device.sPDIFOptical2"), tk("device.sPDIFCoaxial")],
 };
 
-export function sourceNames(s: DeviceState): { value: number; label: string }[] {
+/** optical port 2 in the input select of the CT7302 boards: with S/PDIF from the DSP (system.spdif.out=1,
+ * forge-dsp-firmware#82) it is the output, the firmware refuses it as input (#42) */
+export const SPDIF_OUT_PORT_SOURCE = 4;
+
+/** S/PDIF signal events of the CT7302 boards per input select value (firmware events.c spdif_setevent,
+ * events.txt #25..#29). With S/PDIF from the DSP the second CT7302 no longer scans the inputs: only the
+ * event of the active input follows its signal, the others keep their last value (#42). */
+export const SPDIF_SIGNAL_EVENT: Record<number, number> = { 1: 29, 2: 28, 3: 25, 4: 26, 5: 27 };
+
+/** events of a block that no longer follow their S/PDIF input in the DSP mode */
+export function staleSpdifEvents(s: DeviceState, m: Modc): number[] {
+  if (s.spdifOut !== 1 || s.identity.model === "96LN") return [];
+  const active = s.mixer.input !== null ? SPDIF_SIGNAL_EVENT[s.mixer.input] : undefined;
+  const all = Object.values(SPDIF_SIGNAL_EVENT);
+  return [...new Set(m.events.filter((e) => all.includes(e) && e !== active))];
+}
+
+export function sourceNames(s: DeviceState): { value: number; label: string; disabled?: boolean }[] {
   const names = SOURCES[s.identity.model] ?? SOURCES.default;
   const count = Math.max(names.length, s.mixer.inputMax ?? 0);
-  return Array.from({ length: count }, (_, i) => ({ value: i + 1, label: names[i] ? tx(names[i]) : t("common.sourceN", { n: i + 1 }) }));
+  const portOut = s.spdifOut === 1 && !SOURCES[s.identity.model];   // port 2 sends (#42)
+  return Array.from({ length: count }, (_, i) => {
+    const label = names[i] ? tx(names[i]) : t("common.sourceN", { n: i + 1 });
+    return portOut && i + 1 === SPDIF_OUT_PORT_SOURCE ? { value: i + 1, label: t("spdif.portIsOutput", { name: label }), disabled: true } : { value: i + 1, label };
+  });
 }
 
 /** The signal sums ("All Over": a common path with its own filter chain in front of all outputs)

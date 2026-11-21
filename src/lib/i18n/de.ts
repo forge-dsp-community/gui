@@ -1233,6 +1233,13 @@ export const DE = {
   "spdif.guide": "Anleitung: Umbau und Einstellungen",
   "spdif.toPool": "Filter der Summen öffnen …",
   "spdif.delayNote": "Ansicht „nur digital“: Der S/PDIF-Ausgang verlässt den DSP vor den Ausgangs-Laufzeiten. Auf S/PDIF wirkt nur die Laufzeit der Eingänge.",
+  "spdif.portIsOutput": "{name} (S/PDIF-Ausgang)",
+  "spdif.outsAnalogOnly": "S/PDIF aus dem DSP: Pegel, Mute und Limiter der Ausgänge wirken nur auf die Analogausgänge. S/PDIF bekommt den Mixer-Ausgang 1/2 davor.",
+  "spdif.outFiltersAnalogOnly": "Filter auf den Ausgängen wirken nur analog, nicht auf S/PDIF. Für S/PDIF die Summen A/B filtern.",
+  "spdif.sumActs": "Diese Summe liegt im Signalweg des S/PDIF-Ausgangs: Ihre Filter wirken auch auf S/PDIF.",
+  "spdif.outDelayAnalogOnly": "S/PDIF aus dem DSP: Die Laufzeiten der Ausgänge wirken nur analog. Auf S/PDIF wirkt nur die Laufzeit der Eingänge.",
+  "spdif.modcStaleShort": "hört auf das Signal eines nicht aktiven S/PDIF-Eingangs",
+  "spdif.modcStale": "Hört auf S/PDIF-Signal-Ereignisse ({list}). Mit S/PDIF aus dem DSP prüft die Firmware nur noch den aktiven Eingang; diese Ereignisse behalten ihren letzten Wert.",
 } as const;
 
 export type Key = keyof typeof DE;

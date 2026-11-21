@@ -642,3 +642,27 @@ describe("production number and delay pool (forge-dsp-firmware 2.8.0, Prüfung 1
     expect(limitsOf(s).delayPool).toBe(2920);
   });
 });
+
+// gui#42 / forge-dsp-firmware#82: S/PDIF from the DSP
+import { sourceNames, staleSpdifEvents, SPDIF_OUT_PORT_SOURCE } from "../src/lib/device";
+describe("S/PDIF from the DSP", () => {
+  const dev = (spdifOut: number | null, input: number | null, model = "96ELN") => {
+    const s = emptyState();
+    s.identity.model = model;
+    s.spdifOut = spdifOut;
+    s.mixer.input = input;
+    return s;
+  };
+  const block = (events: number[]) => ({ enable: 1, type: 96, flags: [0, 0, 0, 0], events, sets: [0, 0, 0, 0] });
+  it("optical 2 is locked as input only in the DSP mode", () => {
+    expect(sourceNames(dev(1, 3)).find((x) => x.value === SPDIF_OUT_PORT_SOURCE)?.disabled).toBe(true);
+    expect(sourceNames(dev(0, 3)).some((x) => x.disabled)).toBe(false);
+    expect(sourceNames(dev(1, 3, "96LN")).some((x) => x.disabled)).toBe(false);   // 96LN: no CT7302
+  });
+  it("signal events of inactive S/PDIF inputs are stale in the DSP mode", () => {
+    // input 3 = optical 1 = event 25 (active); 26 optical 2 and 29 Bluetooth no longer follow
+    expect(staleSpdifEvents(dev(1, 3), block([25, 26, 29, 11]))).toEqual([26, 29]);
+    expect(staleSpdifEvents(dev(0, 3), block([26]))).toEqual([]);
+    expect(staleSpdifEvents(dev(1, 3), block([11, 12]))).toEqual([]);
+  });
+});

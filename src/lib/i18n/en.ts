@@ -1233,4 +1233,11 @@ export const EN: Record<Key, string> = {
   "spdif.guide": "Guide: hardware change and settings (German)",
   "spdif.toPool": "Open the filters of the sums …",
   "spdif.delayNote": "View “digital only”: the S/PDIF output leaves the DSP before the output delays. Only the input delay acts on S/PDIF.",
+  "spdif.portIsOutput": "{name} (S/PDIF output)",
+  "spdif.outsAnalogOnly": "S/PDIF from the DSP: level, mute and limiter of the outputs act only on the analog outputs. S/PDIF gets mixer output 1/2 before them.",
+  "spdif.outFiltersAnalogOnly": "Filters on the outputs act only on the analog outputs, not on S/PDIF. For S/PDIF filter the sums A/B.",
+  "spdif.sumActs": "This sum is in the path of the S/PDIF output: its filters act on S/PDIF too.",
+  "spdif.outDelayAnalogOnly": "S/PDIF from the DSP: the output delays act only on the analog outputs. Only the input delay acts on S/PDIF.",
+  "spdif.modcStaleShort": "listens to the signal of an inactive S/PDIF input",
+  "spdif.modcStale": "Listens to S/PDIF signal events ({list}). With S/PDIF from the DSP the firmware checks only the active input; these events keep their last value.",
 };

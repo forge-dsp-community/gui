@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { chainHidden, digitalView, app, inName, inNameRaw, inPos, outName, write } from "../lib/app.svelte";
+  import { chainHidden, digitalView, spdifFromDsp, app, inName, inNameRaw, inPos, outName, write } from "../lib/app.svelte";
   import { t } from "../lib/i18n/index.svelte";
   import { alignFromDistances, cmToSamples, delayGroups, delayMax, inputDelayGroup, inputsLeftFirst, msToSamples, samplesToCm,
     samplesToMs, type DelayGroup } from "../lib/device";
@@ -120,6 +120,7 @@
 {#if digitalView() && outGroups.every((g) => g.channels.every((c) => chainHidden(c)))}
   <p class="panel muted spdifnote" data-testid="delay-spdif-note">{t("spdif.delayNote")}</p>
 {:else}
+{#if spdifFromDsp()}<p class="panel muted spdifnote" data-testid="delay-spdif-hint">{t("spdif.outDelayAnalogOnly")}</p>{/if}
 <section class="panel desk">
   {#each outGroups.filter((g) => g.channels.some((c) => !chainHidden(c))) as g}
     <div class="group">

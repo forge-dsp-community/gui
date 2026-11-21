@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from "../lib/i18n/index.svelte";
-  import { outHidden, app, inDefault, inPos, inNameRaw, outName, outNameRaw, setInName, setOutName, watchLevels, write } from "../lib/app.svelte";
+  import { outHidden, spdifFromDsp, app, inDefault, inPos, inNameRaw, outName, outNameRaw, setInName, setOutName, watchLevels, write } from "../lib/app.svelte";
   import { inputsLeftFirst, limitsOf, MIXER_BUS_COLUMNS, MIXER_BUS_ROWS, MIXER_INPUTS, mixerRowOfOutput, sourceNames, sumsActive,
     sumsMapping, sumsShares, vuToDb } from "../lib/device";
   import Knob from "../components/Knob.svelte";
@@ -161,7 +161,7 @@
     <span class="muted">{t("mixer.digitalSource")}</span>
     <select value={val(1, 10) ?? 0} onchange={(e) => source(Number(e.currentTarget.value))}>
       {#if !sources.some((s) => s.value === (val(1, 10) ?? 0))}<option value={val(1, 10) ?? 0}>–</option>{/if}
-      {#each sources as s}<option value={s.value}>{s.label}</option>{/each}
+      {#each sources as s}<option value={s.value} disabled={s.disabled}>{s.label}</option>{/each}
     </select>
   </label>
 </div>
@@ -220,6 +220,7 @@
 {#if d.scales.out}
   <section class="panel console outs">
     <h3>{t("common.outputs")}</h3>
+    {#if spdifFromDsp()}<p class="muted small spdifhint" data-testid="mixer-spdif-hint">{t("spdif.outsAnalogOnly")}</p>{/if}
     <div class="bank">
       {#each outs as o}
         {@const pair = Math.floor((o - 1) / 2)}
@@ -262,6 +263,7 @@
   {#if !allOver}{t("mixer.allOverOffSums")}{:else}{t("mixer.allOverSumsReach")}{/if}</p>
 
 <style>
+  .spdifhint { margin: 0 0 .4rem; }
   .head { margin-bottom: 1rem; }
   .bar { display: flex; align-items: center; gap: .9rem; flex-wrap: wrap; margin-bottom: .75rem; }
   .tabs { display: flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }

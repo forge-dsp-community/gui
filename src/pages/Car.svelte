@@ -105,7 +105,7 @@
       <h3>{t("car.source")}</h3>
       <div class="row wrap">
         {#each sources as s}
-          <button class="big" class:on={d.mixer.input === s.value} aria-pressed={d.mixer.input === s.value} disabled={!ready} onclick={() => source(s.value)}>{s.label}</button>
+          <button class="big" class:on={d.mixer.input === s.value} aria-pressed={d.mixer.input === s.value} disabled={!ready || s.disabled} onclick={() => source(s.value)}>{s.label}</button>
         {/each}
       </div>
     </section>

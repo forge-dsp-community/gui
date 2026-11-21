@@ -92,3 +92,30 @@ describe("S/PDIF from the DSP, view digital only", () => {
     app.device.spdifOut = 0;
   });
 });
+
+describe("S/PDIF from the DSP, hints (gui#42)", () => {
+  beforeAll(async () => {
+    await connect("demo");
+  });
+  const show = (Page: Component) => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    const c = mount(Page, { target: el });
+    flushSync();
+    return { el, done: () => { unmount(c); el.remove(); } };
+  };
+  it("mixer, filters and delay say what acts only on the analog outputs", () => {
+    history.replaceState(null, "", "/?demo");
+    setDigitalOnly(false);
+    app.device.spdifOut = 1;
+    for (const [Page, id] of [[Mixer, "mixer-spdif-hint"], [Filters, "filters-spdif-hint"], [Delay, "delay-spdif-hint"]] as const) {
+      const { el, done } = show(Page);
+      expect(el.querySelector(`[data-testid="${id}"]`), id).not.toBeNull();
+      done();
+    }
+    app.device.spdifOut = 0;
+    const { el, done } = show(Mixer);
+    expect(el.querySelector('[data-testid="mixer-spdif-hint"]')).toBeNull();
+    done();
+  });
+});

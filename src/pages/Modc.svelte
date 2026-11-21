@@ -1,7 +1,7 @@
 <script lang="ts">
   import { t, tx } from "../lib/i18n/index.svelte";
   import { app, outName, sendModc } from "../lib/app.svelte";
-  import { availableTypes, copyModc, DEVICE_TYPES, emptyModc, eventOptions, modcName, modcText, modcType, onDevicePage, typeFields, type Modc } from "../lib/device";
+  import { availableTypes, copyModc, DEVICE_TYPES, emptyModc, eventOptions, modcName, modcText, modcType, onDevicePage, staleSpdifEvents, typeFields, type Modc } from "../lib/device";
   import Icon from "../components/Icon.svelte";
   import ModcFields from "../components/ModcFields.svelte";
   import GalaPanel from "../components/GalaPanel.svelte";
@@ -100,6 +100,7 @@
       <button class="item" class:on={sel === n} aria-pressed={sel === n} onclick={() => (sel = n)}>
         <span class="nr num">{n}</span>
         <span class="nm">{modcName(b.type)}</span>
+        {#if staleSpdifEvents(d, b).length}<span class="warnt" title={t("spdif.modcStaleShort")} data-testid="modc-spdif-stale">!</span>{/if}
         <span class="dot" class:ok={!!b.enable} title={b.enable ? t("common.active") : t("common.off")}></span>
       </button>
     {/each}
@@ -129,6 +130,7 @@
           {/if}
         </div>{/if}{:else}<p class="muted">{t("modc.fieldsTypeNotDescribed")}</p>{/if}
       <p class="muted small">{t("modc.blockOutputsItsResult", { n: 96 + sel })}</p>
+      {#if staleSpdifEvents(d, m).length}<p class="small warnt" data-testid="modc-spdif-stale-note">{t("spdif.modcStale", { list: staleSpdifEvents(d, m).join(", ") })}</p>{/if}
 
       {#if fields && !raw}
         <ModcFields {m} {fields} {events} {change} />

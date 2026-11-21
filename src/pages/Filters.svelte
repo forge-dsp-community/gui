@@ -310,6 +310,7 @@
     </button>
   {/each}
 </div>
+{#if spdifFromDsp()}<p class="panel muted small spdifhint" data-testid="filters-spdif-hint">{ch > 30 ? t("spdif.sumActs") : t("spdif.outFiltersAnalogOnly")}</p>{/if}
 
 <!-- filters: crossovers, shelves, notch, all passes -->
 <section class="panel block">
@@ -504,6 +505,7 @@
 {/if}
 
 <style>
+  .spdifhint { padding: .5rem .8rem; margin: 0 0 .6rem; }
   .warnt { color: var(--warn); }
   .poolbusy { color: var(--accent); font-size: .85rem; margin: .5rem 0; }
   .link { border: 0; background: none; padding: 0; color: var(--accent); font-size: inherit; cursor: pointer; }
