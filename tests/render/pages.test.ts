@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import type { Component } from "svelte";
-import { app, connect, type PageId } from "../../src/lib/app.svelte";
+import { app, connect, setDigitalOnly, type PageId } from "../../src/lib/app.svelte";
 import Overview from "../../src/pages/Overview.svelte";
 import Mixer from "../../src/pages/Mixer.svelte";
 import Filters from "../../src/pages/Filters.svelte";
@@ -41,4 +41,54 @@ describe("pages build in the demo", () => {
       el.remove();
     });
   }
+});
+
+// forge-dsp-firmware#82: S/PDIF from the DSP carries the mixer outputs 1/2 of core 1, before the output
+// chains; the view "digital only" shows those two in the mixer, the sums A/B in Filters & EQ and no
+// output delay
+describe("S/PDIF from the DSP, view digital only", () => {
+  beforeAll(async () => {
+    await connect("demo");
+  });
+  const render = (Page: Component) => {
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    const c = mount(Page, { target: el });
+    flushSync();
+    return { el, done: () => { unmount(c); el.remove(); } };
+  };
+  it("mixer: only outputs 1/2, named S/PDIF L/R", () => {
+    history.replaceState(null, "", "/?demo");
+    app.device.spdifOut = 1;
+    setDigitalOnly(true);
+    const own = app.device.channelNames;
+    app.device.channelNames = {};    // the demo names its outputs; own names take precedence
+    const { el, done } = render(Mixer);
+    const outs = [...el.querySelectorAll(".rlabel")].filter((r) => r.querySelector(".num"));
+    expect(outs.map((r) => r.querySelector(".num")?.textContent)).toEqual(["1", "2"]);
+    expect(outs.map((r) => r.querySelector(".rn")?.textContent)).toEqual(["S/PDIF L", "S/PDIF R"]);
+    done();
+    app.device.channelNames = own;
+  });
+  it("filters: only the sums A/B", () => {
+    const { el, done } = render(Filters);
+    const tabs = el.querySelectorAll(".chans button");
+    expect(tabs.length).toBe(2);
+    expect([...tabs].every((b) => b.classList.contains("bus"))).toBe(true);
+    done();
+  });
+  it("delay: no output strip, a note instead", () => {
+    const { el, done } = render(Delay);
+    expect(el.querySelector('[data-testid="delay-spdif-note"]')).not.toBeNull();
+    done();
+  });
+  it("without the view: all outputs back, filters list outputs and sums", () => {
+    setDigitalOnly(false);
+    const { el, done } = render(Filters);
+    const tabs = [...el.querySelectorAll(".chans button")];
+    expect(tabs.filter((b) => !b.classList.contains("bus")).length).toBe(app.device.gain.out.length);
+    expect(tabs.filter((b) => b.classList.contains("bus")).length).toBe(2);
+    done();
+    app.device.spdifOut = 0;
+  });
 });

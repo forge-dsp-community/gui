@@ -784,8 +784,13 @@ export function setDigitalOnly(on: boolean) {
   view.digitalOnly = on;
   try { localStorage.setItem("digitalOnly", on ? "1" : "0"); } catch { /* see above */ }
 }
-/** an output the pages leave out: the analog ones in the view "digital only" */
-export const outHidden = (ch: number) => view.digitalOnly && spdifFromDsp() && ch < 30 && !SPDIF_OUTS.includes(ch);
+/** the view "digital only" is in effect: it is switched on and S/PDIF comes from the DSP */
+export const digitalView = () => view.digitalOnly && spdifFromDsp();
+/** an output the mixer leaves out in the view "digital only": all but the two that feed S/PDIF */
+export const outHidden = (ch: number) => digitalView() && ch < 30 && !SPDIF_OUTS.includes(ch);
+/** an output chain (filters, delay) left out in the view "digital only": S/PDIF leaves before them,
+ * so none of the outputs counts there; Filters & EQ shows the sums (35/36) instead */
+export const chainHidden = (ch: number) => digitalView() && ch < 30;
 
 // --- files on the microSD (forge-dsp-firmware#59) --------------------------------------------------
 let sdBusy = false;
@@ -966,8 +971,11 @@ export function cleanName(t: string): string {
   return v.trim();
 }
 
-/** the outputs that carry the S/PDIF output in its DSP mode (forge-dsp-firmware#82: DA.IN.4 = core 3, 7/8) */
-export const SPDIF_OUTS = [7, 8];
+/** the mixer outputs that carry the S/PDIF output in its DSP mode. forge-dsp-firmware#82, measured on
+ * a 96ELN PCB 4.0: the second CT7302 reads DA.IN.4 = core 1 DO7/DO8, the mixer rows of outputs 1/2
+ * (mixer.P.3/4), before the output chains of core 3. On S/PDIF act input delay and level, the mixer and
+ * the sums A/B (35/36); filters, delay, level and mute of the outputs do not. */
+export const SPDIF_OUTS = [1, 2];
 export const spdifFromDsp = () => app.device.spdifOut === 1;
 export const outName = (ch: number) =>
   app.device.channelNames[ch] || (spdifFromDsp() && SPDIF_OUTS.includes(ch) ? `S/PDIF ${ch === SPDIF_OUTS[0] ? "L" : "R"}` : t("common.outputN", { n: ch }));

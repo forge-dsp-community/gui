@@ -110,7 +110,7 @@ export interface DeviceState {
   uptime: { ms: number; at: number } | null;
   /** ms remote out stays on after ACC off, outputs muted (system.shutdown.hold, forge-dsp-firmware#68); null = none */
   shutdownHold: number | null;
-  /** S/PDIF output (system.spdif.out, forge-dsp-firmware#82): 0 input scan, 1 DSP outputs 7/8; null = not supported */
+  /** S/PDIF output (system.spdif.out, forge-dsp-firmware#82): 0 input scan, 1 mixer outputs 1/2 of core 1; null = not supported */
   spdifOut: number | null;
   /** its rate in kHz in the DSP mode (system.spdif.rate, forge-dsp-firmware#83): 0 = reference clock; null = not supported */
   spdifRate: number | null;

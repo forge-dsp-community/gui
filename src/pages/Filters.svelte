@@ -2,7 +2,7 @@
   import { t, tk, tx } from "../lib/i18n/index.svelte";
   import { pageKeys } from "../lib/keys.svelte";
   import { tick, untrack } from "svelte";
-  import { outHidden, app, outName, setPoolLengths, write } from "../lib/app.svelte";
+  import { chainHidden, spdifFromDsp, app, outName, setPoolLengths, write } from "../lib/app.svelte";
   import { channelColor } from "../lib/channelColors";
   import { isPort, limitsOf, loudnessReserved, planCopy, poolOf, proposeGrow, rawToDb, sumsActiveAnywhere, type Biquad } from "../lib/device";
   import { coeffs, isActive, typeInfo, TYPES, viewRange, type SumPart } from "../lib/dsp/biquad";
@@ -19,8 +19,9 @@
   const port = $derived(isPort(d));
   // channels as the firmware numbers them: outputs 1..n, 35/36 = the two signal sums of the mixer
   const BUS: Record<number, string> = { 35: tk("common.sumA"), 36: tk("common.sumB") };
-  // outputs first, the sums (35/36) last and only while "All Over" is on in the mixer
-  const channels = $derived(Object.keys(d.biquads).map(Number).filter((c) => (c < 30 || sumsActiveAnywhere(d)) && !outHidden(c)).sort((a, b) => a - b));
+  // outputs first, the sums (35/36) last and only while "All Over" is on in the mixer or S/PDIF comes from
+  // the DSP (their filters are the ones that act on S/PDIF, forge-dsp-firmware#82); "digital only": the sums only
+  const channels = $derived(Object.keys(d.biquads).map(Number).filter((c) => (c < 30 || sumsActiveAnywhere(d) || spdifFromDsp()) && !chainHidden(c)).sort((a, b) => a - b));
   const chName = (ch: number) => (BUS[ch] ? tx(BUS[ch]) : outName(ch));
   let ch = $state(0);
   $effect(() => {

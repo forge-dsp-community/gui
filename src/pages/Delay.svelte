@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { outHidden, app, inName, inNameRaw, inPos, outName, write } from "../lib/app.svelte";
+  import { chainHidden, digitalView, app, inName, inNameRaw, inPos, outName, write } from "../lib/app.svelte";
   import { t } from "../lib/i18n/index.svelte";
   import { alignFromDistances, cmToSamples, delayGroups, delayMax, inputDelayGroup, inputsLeftFirst, msToSamples, samplesToCm,
     samplesToMs, type DelayGroup } from "../lib/device";
@@ -116,16 +116,21 @@
   </section>
 {/if}
 
+<!-- view "digital only": S/PDIF leaves before the output delays (forge-dsp-firmware#82) -->
+{#if digitalView() && outGroups.every((g) => g.channels.every((c) => chainHidden(c)))}
+  <p class="panel muted spdifnote" data-testid="delay-spdif-note">{t("spdif.delayNote")}</p>
+{:else}
 <section class="panel desk">
-  {#each outGroups as g}
+  {#each outGroups.filter((g) => g.channels.some((c) => !chainHidden(c))) as g}
     <div class="group">
       <div class="ghead"><h3>{t("delay.outputsB", { a: g.channels[0], b: g.channels[g.channels.length - 1] })}</h3>{@render meter("out", g)}</div>
       <div class="strips">
-        {#each g.channels.filter((c) => !outHidden(c)) as ch}{@render strip("out", ch, g, String(ch), outName(ch))}{/each}
+        {#each g.channels.filter((c) => !chainHidden(c)) as ch}{@render strip("out", ch, g, String(ch), outName(ch))}{/each}
       </div>
     </div>
   {/each}
 </section>
+{/if}
 
 <div class="foot">
   <p class="muted small">{t("delay.dragFaderOrType")}</p>
@@ -136,6 +141,7 @@
 </div>
 
 <style>
+  .spdifnote { padding: .8rem 1rem; margin: 0; }
   .head { margin-bottom: 1rem; display: flex; align-items: flex-start; gap: .75rem; flex-wrap: wrap; }
   .head > div:first-child { margin-right: auto; }
   .units { display: flex; border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; }

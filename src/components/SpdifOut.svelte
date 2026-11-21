@@ -1,6 +1,7 @@
 <script lang="ts">
-  // S/PDIF output behind the DSP (#42, forge-dsp-firmware#82): the second CT7302 sends DSP outputs 7/8
-  // (core 3, after mixer, filters, delay, gain) at the optical port 2 instead of scanning the inputs.
+  // S/PDIF output from the DSP (#42, forge-dsp-firmware#82): the second CT7302 sends mixer outputs 1/2
+  // (core 1: input delay and level, mixer, sums A/B; before the output chains) at the optical port 2
+  // instead of scanning the inputs.
   import { i18n, t } from "../lib/i18n/index.svelte";
   import { app, setDigitalOnly, view, writeOnce } from "../lib/app.svelte";
 
@@ -63,7 +64,7 @@
       <span><strong>{t("spdif.digitalOnly")}</strong><small class="muted">{t("spdif.digitalOnlyHint")}</small></span>
       <input type="checkbox" class="toggle" checked={view.digitalOnly} onchange={(e) => setDigitalOnly(e.currentTarget.checked)} />
     </label>
-    <div><button onclick={() => (app.page = "biquads")}>{t("spdif.toPool")}</button></div>
+    <div><button onclick={() => (app.page = "filters")}>{t("spdif.toPool")}</button></div>
   {/if}
 </section>
 
