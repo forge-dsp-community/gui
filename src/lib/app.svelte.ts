@@ -910,8 +910,8 @@ export function watchSpeed(on: boolean) { speedWatch = on; }
  *  (or without output levels), the overview. Outputs (system.vu.out): the header meter on outputs,
  *  the overview, the limiter marks of the mixer. The header meter is hidden in the touch skin.
  *  Use as `$effect(() => watchLevels("in"))`. */
-const levelUsers = { in: 0, out: 0 };
-export function watchLevels(kind: "in" | "out"): () => void {
+const levelUsers = { in: 0, out: 0, spdif: 0 };
+export function watchLevels(kind: "in" | "out" | "spdif"): () => void {
   levelUsers[kind]++;
   let done = false;
   return () => { if (!done) { done = true; levelUsers[kind]--; } };
@@ -926,6 +926,8 @@ async function poll() {
   if (app.device.vu !== null && levelUsers.in > 0) regs.push("system.vu");
   // output levels: the meter in the header shows their sum
   if (app.device.vuOut !== null && levelUsers.out > 0) regs.push("system.vu.out");
+  // the level at the tap of the S/PDIF output (forge-dsp-firmware#91): its section in the device settings
+  if (app.device.vuSpdif !== null && levelUsers.spdif > 0) regs.push("system.vu.spdif");
   if (speedWatch && tick % 5 === 0) regs.push("system.kmh");
   if (tick % STATUS_EVERY === 0) {
     for (const r of STATUS_REGS) if (!r.port || isPort(app.device)) regs.push(r.reg);

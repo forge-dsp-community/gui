@@ -1240,4 +1240,6 @@ export const EN: Record<Key, string> = {
   "spdif.outDelayAnalogOnly": "S/PDIF from the DSP: the output delays act only on the analog outputs. Only the input delay acts on S/PDIF.",
   "spdif.modcStaleShort": "listens to the signal of an inactive S/PDIF input",
   "spdif.modcStale": "Listens to S/PDIF signal events ({list}). With S/PDIF from the DSP the firmware checks only the active input; these events keep their last value.",
+  "spdif.level": "Level at the S/PDIF output",
+  "spdif.levelHint": "RMS level at the tap in the DSP (mixer output 1/2), as it leaves on S/PDIF.",
 };

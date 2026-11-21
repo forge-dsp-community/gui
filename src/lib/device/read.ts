@@ -49,6 +49,7 @@ const STEPS: { reg: string; port?: boolean; slow?: boolean }[] = [
   { reg: "system.spdif.rate", port: true },
   { reg: "system.vu", port: true },
   { reg: "system.vu.out", port: true },
+  { reg: "system.vu.spdif", port: true },
   { reg: "system.dsp.limiter", port: true },
   { reg: "system.dsp.limiter.attack", port: true },
   { reg: "system.dsp.limiter.release", port: true },

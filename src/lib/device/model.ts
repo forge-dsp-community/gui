@@ -96,6 +96,8 @@ export interface DeviceState {
   vu: number[] | null;
   /** output levels 1..8, same scale (system.vu.out, forge-dsp-firmware#52); null = not available */
   vuOut: number[] | null;
+  /** level at the tap of the S/PDIF output, [L, R] (system.vu.spdif, forge-dsp-firmware#91); null = not supported */
+  vuSpdif: number[] | null;
   /** output limiter of the port firmware (forge-dsp-firmware#58): threshold per output in tenths of
    *  dBFS (0 = off, -240..0), attack in tenths of ms, release in ms; null without the block */
   limiter: { t: number[]; attack: number | null; release: number | null } | null;
@@ -144,6 +146,7 @@ export function emptyState(): DeviceState {
     supply: null,
     vu: null,
     vuOut: null,
+    vuSpdif: null,
     limiter: null,
     events: {},
     temperature: null,
@@ -267,6 +270,7 @@ export function applyAnswer(s: DeviceState, a: Answer): boolean {
         case "vu":
           if (p.length === 2) { s.vu = nums(v); return true; }
           if (p.length === 3 && p[2] === "out") { s.vuOut = nums(v); return true; }
+          if (p.length === 3 && p[2] === "spdif") { s.vuSpdif = nums(v); return true; }
           return false;
         case "dsp":
           if (p[2] !== "limiter") return false;

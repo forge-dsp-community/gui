@@ -3,7 +3,8 @@
   // (core 1: input delay and level, mixer, sums A/B; before the output chains) at the optical port 2
   // instead of scanning the inputs.
   import { i18n, t } from "../lib/i18n/index.svelte";
-  import { app, setDigitalOnly, view, writeOnce } from "../lib/app.svelte";
+  import { app, setDigitalOnly, view, watchLevels, writeOnce } from "../lib/app.svelte";
+  import { vuToDb } from "../lib/device";
 
   const d = $derived(app.device);
   // a port firmware before 2.7 does not know system.spdif.out: section shown, choice locked
@@ -22,6 +23,11 @@
     if (!rateErr) d.spdifRate = v;
     busy = false;
   }
+
+  // level at the tap (forge-dsp-firmware#91): read only while the DSP mode is chosen and the firmware knows it
+  $effect(() => { if (d.spdifOut === 1 && d.vuSpdif !== null) return watchLevels("spdif"); });
+  const lvl = (raw: number) => { const db = vuToDb(raw); return db <= -120 ? "−∞" : `${db.toFixed(0).replace("-", "−")} dB`; };
+  const pct = (raw: number) => `${Math.max(0, Math.min(100, ((vuToDb(raw) + 80) / 80) * 100))}%`;
 
   async function set(v: number) {
     if (busy || !known || d.spdifOut === v) return;
@@ -51,6 +57,16 @@
       <li>{t("spdif.mute")}</li>
       <li>{t("spdif.cores")}</li>
     </ul>
+    {#if d.vuSpdif !== null}
+      <div class="row" data-testid="spdif-level">
+        <span><strong>{t("spdif.level")}</strong><small class="muted">{t("spdif.levelHint")}</small></span>
+        <div class="meters">
+          {#each d.vuSpdif as raw, i}
+            <div class="m"><span class="ch">{i ? "R" : "L"}</span><div class="rail"><div class="fill" style="width:{pct(raw)}"></div></div><span class="num v">{lvl(raw)}</span></div>
+          {/each}
+        </div>
+      </div>
+    {/if}
     {#if d.spdifRate !== null}
       <label class="row">
         <span><strong>{t("spdif.rate")}</strong><small class="muted">{t("spdif.rateHint")}</small></span>
@@ -80,4 +96,9 @@
   .toggle { width: 1.2rem; height: 1.2rem; accent-color: var(--accent); flex: none; }
   .errtxt { color: var(--err); }
   .warntxt { color: var(--warn); }
+  .meters { display: grid; gap: .25rem; min-width: 12rem; }
+  .m { display: grid; grid-template-columns: 1rem 1fr 3.5rem; gap: .4rem; align-items: center; font-size: .8rem; }
+  .rail { height: .45rem; border-radius: 999px; background: var(--line, #8884); overflow: hidden; }
+  .fill { height: 100%; background: var(--accent); }
+  .v { text-align: right; }
 </style>

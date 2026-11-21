@@ -79,6 +79,7 @@ export function demoState(n = 1): DeviceState {
   s.temperature = 38.5;
   s.vu = [0, 0, 0, 0, 0, 0, 215, 213];
   s.vuOut = [200, 197, 196, 193, 180, 178, 150, 148];
+  s.vuSpdif = [190, 186];
   s.events = { 58: 231, 59: 231 };  // volume block 2: -12 dB
   if (n === 2) {
     Object.assign(s.identity, { keyInfo: DEMO_KEY2, model: "CORED8", pcb: "4.1" });

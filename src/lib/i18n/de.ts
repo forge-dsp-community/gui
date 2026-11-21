@@ -1240,6 +1240,8 @@ export const DE = {
   "spdif.outDelayAnalogOnly": "S/PDIF aus dem DSP: Die Laufzeiten der Ausgänge wirken nur analog. Auf S/PDIF wirkt nur die Laufzeit der Eingänge.",
   "spdif.modcStaleShort": "hört auf das Signal eines nicht aktiven S/PDIF-Eingangs",
   "spdif.modcStale": "Hört auf S/PDIF-Signal-Ereignisse ({list}). Mit S/PDIF aus dem DSP prüft die Firmware nur noch den aktiven Eingang; diese Ereignisse behalten ihren letzten Wert.",
+  "spdif.level": "Pegel am S/PDIF-Ausgang",
+  "spdif.levelHint": "Effektivpegel am Abgriff im DSP (Mixer-Ausgang 1/2), wie er auf S/PDIF hinausgeht.",
 } as const;
 
 export type Key = keyof typeof DE;

@@ -659,6 +659,12 @@ describe("S/PDIF from the DSP", () => {
     expect(sourceNames(dev(0, 3)).some((x) => x.disabled)).toBe(false);
     expect(sourceNames(dev(1, 3, "96LN")).some((x) => x.disabled)).toBe(false);   // 96LN: no CT7302
   });
+  it("system.vu.spdif is read into vuSpdif (forge-dsp-firmware#91)", () => {
+    const s = emptyState();
+    expect(s.vuSpdif).toBeNull();
+    expect(applyAnswer(s, parseAnswer(" <.1 system.vu.spdif=[162,153]")!)).toBe(true);
+    expect(s.vuSpdif).toEqual([162, 153]);
+  });
   it("signal events of inactive S/PDIF inputs are stale in the DSP mode", () => {
     // input 3 = optical 1 = event 25 (active); 26 optical 2 and 29 Bluetooth no longer follow
     expect(staleSpdifEvents(dev(1, 3), block([25, 26, 29, 11]))).toEqual([26, 29]);
