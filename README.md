@@ -11,7 +11,7 @@ Neue Bedienoberfläche für **Forge DSP** und **ETON CORE D8** als Nachfolger de
 
 Die Firmware des Forge (Original BASCOM 1.11.6000 oder der C-Port [forge-dsp-firmware](https://github.com/forge-dsp-community/firmware)) bleibt unverändert, die App nutzt das Textprotokoll.
 
-**Stand:** Release 1.8.0 und Hauptzweig. Seiten: Übersicht mit Pegeln aller Ein- und Ausgänge, Startzeiten und Laufzeit (Port-Firmware ab 2.4.1), Mixer als Mischpult (Kanalzüge, Routing,
+**Stand:** Release 1.9.0 und Hauptzweig. Seiten: Übersicht mit Pegeln aller Ein- und Ausgänge, Startzeiten und Laufzeit (Port-Firmware ab 2.4.1), Mixer als Mischpult (Kanalzüge, Routing,
 Ausgangsbank, Profile, „All Over“), Filter & EQ (Frequenz- und Phasengang, Weichenansicht mit elektrischer Summe,
 Kanal kopieren, Filter aus REW übernehmen, Weichen-Assistent), Laufzeit, Steuerblöcke (Loudness nennt die nötigen freien Filter und lässt sich nur einschalten, wenn sie frei sind, die Filterseite hält sie frei; darin GALA: geschwindigkeitsabhängige Lautstärke mit Kennlinie, Live-Anzeige und Testgeschwindigkeit, ab Port-Firmware mit #71), Geräteeinstellungen (Ein-/Ausschalten als Ablauf, Clickless, Haupttakt, S/PDIF, ES9038PRO in Worten; nur, was das Gerät hat; Werks-Reset ab Port-Firmware 2.6.2, zeigt und sichert vorher die Kalibrierung, #40), Presets mit Abstimmungsdateien im `.cfg`-Format der Original-GUI und Vergleich
 (zwei Presets oder Gerät gegen Datei, Unterschiede in Worten), Biquad-Verteilung, Diagnose mit Log der Speicherkarte, Speicherkarte, Firmware-Update im Browser (auch direkt aus den
