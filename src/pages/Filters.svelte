@@ -7,6 +7,7 @@
   import { isPort, limitsOf, loudnessReserved, planCopy, poolOf, proposeGrow, rawToDb, sumsActiveAnywhere, type Biquad } from "../lib/device";
   import { coeffs, isActive, typeInfo, TYPES, viewRange, type SumPart } from "../lib/dsp/biquad";
   import { parseRew, planRew, type RewFilter } from "../lib/dsp/rew";
+  import { blockWrites, dirOf, orderOf, ordersOf, passBlocks, sections, type Char, type PassBlock } from "../lib/dsp/passes";
   import ResponsePlot from "../components/ResponsePlot.svelte";
   import Icon from "../components/Icon.svelte";
   import VFader from "../components/VFader.svelte";
@@ -57,7 +58,10 @@
   // (crossovers, shelves, notch, all passes …) with knobs above it.
   const EQ_Q = 1, EQ_BW = 18;
   const isBand = (bq: Biquad) => bq.type === EQ_Q || bq.type === EQ_BW;
-  const FILTER_TYPES = TYPES.filter((t) => t.type !== 0 && t.type !== EQ_Q && t.type !== EQ_BW);
+  // #47: 1st order, Butterworth 12 and Linkwitz 12 are the blocks "Butterworth" / "Linkwitz-Riley" with their order
+  const BLOCK_TYPES = [2, 3, 5, 8, 9, 11];
+  const FILTER_TYPES = TYPES.filter((t) => t.type !== 0 && t.type !== EQ_Q && t.type !== EQ_BW && !BLOCK_TYPES.includes(t.type));
+  const CHARS: { c: Char; name: string }[] = [{ c: "bw", name: "Butterworth" }, { c: "lr", name: "Linkwitz-Riley" }];
   const GROUP_LABEL: Record<string, string> = { EQ: tk("filters.shelfNotchBandPass"), Tiefpass: tk("filters.lowPass"), Hochpass: tk("filters.highPass"),
     Phase: tk("filters.phase"), Sonstige: tk("filters.other") };
   const filterGroups = [...new Set(FILTER_TYPES.map((t) => t.group))];
@@ -93,11 +97,15 @@
     ...slots.filter((s) => s.bq.type !== 0 && !order.includes(s.n)),  // just added, not sorted in yet
   ]);
   const bands = $derived(used.filter((s) => isBand(s.bq)));
-  const filters = $derived(used.filter((s) => !isBand(s.bq)));
-  /** label in lists and on the curve: bands 1, 2, 3 …, filters A, B, C … */
+  // #47: high/low passes with the same direction, frequency and on/off are one block (one card)
+  const blocks = $derived(passBlocks(used).filter((b) => b.slots.length > 1 || BLOCK_TYPES.includes(d.biquads[ch][b.slots[0]].type)));
+  const blockOf = (n: number) => blocks.find((b) => b.slots.includes(n));
+  const filters = $derived(used.filter((s) => !isBand(s.bq) && (blockOf(s.n)?.slots[0] ?? s.n) === s.n));
+  /** label in lists and on the curve: bands 1, 2, 3 …, filters A, B, C … (a block: one letter) */
   const tag = (n: number) => {
     const b = bands.findIndex((s) => s.n === n);
-    return b >= 0 ? String(b + 1) : String.fromCharCode(65 + Math.max(0, filters.findIndex((s) => s.n === n)));
+    const lead = blockOf(n)?.slots[0] ?? n;
+    return b >= 0 ? String(b + 1) : String.fromCharCode(65 + Math.max(0, filters.findIndex((s) => s.n === lead)));
   };
   // #77: the last two slots of a channel with a switched-on loudness block stay free for its shelves
   const reserved = $derived(loudnessReserved(d));
@@ -218,8 +226,43 @@
     resort();
   }
   function remove(n: number) {
-    update(n, { type: 0, f: 0, gain: 0, q: 0, b: 0, flags: 0 });
-    if (selected === n) selected = null;
+    for (const m of blockOf(n)?.slots ?? [n]) {
+      update(m, { type: 0, f: 0, gain: 0, q: 0, b: 0, flags: 0 });
+      if (selected === m) selected = null;
+    }
+    resort();
+  }
+  /** a change of every biquad of a block (frequency, on/off) */
+  function updateAll(n: number, patch: Partial<Biquad>) {
+    for (const m of blockOf(n)?.slots ?? [n]) update(m, patch);
+  }
+  // #47: characteristic and order of a block; a single filter becomes a block when it gets one
+  const blockValue = (n: number, bq: Biquad) => {
+    const b = blockOf(n);
+    return b ? `${b.kind?.char ?? "x"}:${b.dir}` : `t:${bq.type}`;
+  };
+  function toBlock(n: number, char: Char, dir: "lp" | "hp", order?: number) {
+    const b: PassBlock = blockOf(n) ?? { dir, f: d.biquads[ch][n].f, slots: [n], kind: null };
+    const was = order ?? b.kind?.order ?? (dirOf(d.biquads[ch][n].type) ? orderOf(b.slots.map((m) => d.biquads[ch][m])) : 2);
+    const orders = ordersOf(char);
+    const ord = orders.find((o) => o >= was) ?? orders[orders.length - 1];
+    const f = d.biquads[ch][n].f || (dir === "hp" ? 80 : 3000);
+    const freeNs = slots.filter((s) => s.bq.type === 0 && !isReserved(s.n)).map((s) => s.n);
+    const { writes, lost } = blockWrites(b, sections(char, ord, dir, f), freeNs);
+    if (lost) {
+      alert(t("filters.passNoRoom", { n: lost }));
+      return;
+    }
+    for (const [m, bq] of writes) update(m, bq);
+    selected = writes[0][0];
+    resort();
+  }
+  function chooseType(n: number, v: string) {
+    const [k, x] = v.split(":");
+    if (k === "bw" || k === "lr") return toBlock(n, k, x as "lp" | "hp");
+    const b = blockOf(n);
+    if (b) for (const m of b.slots.slice(1)) update(m, { type: 0, f: 0, gain: 0, q: 0, b: 0, flags: 0 });
+    setType(n, Number(x));
     resort();
   }
   /** an EQ band by Q or by bandwidth: the same filter, the other parameter (Q = f / bandwidth) */
@@ -318,49 +361,62 @@
   <div class="cards">
     {#each filters as { n, bq } (n)}
       {@const ti = typeInfo(bq.type)}
+      {@const blk = blockOf(n)}
+      {@const ord = blk ? (blk.kind?.order ?? orderOf(blk.slots.map((m) => d.biquads[ch][m]))) : 0}
+      {@const orders = ordersOf(blk?.kind?.char ?? "bw")}
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="card" class:sel={selected === n} class:off={!isActive(bq)} onpointerdown={() => (selected = n)} onfocusin={() => (selected = n)}>
         <div class="cardhead">
           <span class="nr">{tag(n)}</span>
-          <select value={bq.type} aria-label={t("filters.typeFilterN", { n: tag(n) })} title={ti ? tx(ti.name) : ""} onchange={(e) => setType(n, Number(e.currentTarget.value))}>
-            {#if !ti}<option value={bq.type}>{t("common.typeN", { n: bq.type })}</option>{/if}
+          <select value={blockValue(n, bq)} aria-label={t("filters.typeFilterN", { n: tag(n) })} title={blk ? "" : ti ? tx(ti.name) : ""} onchange={(e) => chooseType(n, e.currentTarget.value)}>
+            {#if !ti}<option value="t:{bq.type}">{t("common.typeN", { n: bq.type })}</option>{/if}
+            {#if blk && !blk.kind}<option value="x:{blk.dir}">{t("filters.passOwn", { dir: t(blk.dir === "hp" ? "filters.highPass" : "filters.lowPass") })}</option>{/if}
             {#each filterGroups as g}
               <optgroup label={tx(GROUP_LABEL[g] ?? g)}>
+                {#if g === "Tiefpass" || g === "Hochpass"}
+                  {#each CHARS as c}<option value="{c.c}:{g === 'Hochpass' ? 'hp' : 'lp'}">{c.name}</option>{/each}
+                {/if}
                 {#each FILTER_TYPES.filter((x) => x.group === g) as x}
-                  <option value={x.type} disabled={!can(x)}>{tx(x.name)}{can(x) ? "" : ` ${t("filters.notFirmware")}`}</option>
+                  <option value="t:{x.type}" disabled={!can(x)}>{tx(x.name)}{can(x) ? "" : ` ${t("filters.notFirmware")}`}</option>
                 {/each}
               </optgroup>
             {/each}
           </select>
           <button class="sw" class:on={isActive(bq)} aria-pressed={isActive(bq)} title={t("filters.filterOff")}
-            onclick={() => update(n, { flags: bq.flags ^ 0x80 })}>{isActive(bq) ? t("filters.on") : t("common.off2")}</button>
+            onclick={() => updateAll(n, { flags: bq.flags ^ 0x80 })}>{isActive(bq) ? t("filters.on") : t("common.off2")}</button>
           <button class="ghost del" title={t("filters.removeFilter")} aria-label={t("filters.removeFilterN", { n: tag(n) })} onclick={() => remove(n)}><Icon name="close" size={14} /></button>
         </div>
         <div class="knobs">
           {#if bq.type !== 19}
             <Knob size={46} caption={t("filters.frequency")} unit="Hz" label={t("filters.frequencyFilterN", { n: tag(n) })} min={0} max={STEPS} value={toPos(bq.f, lim.freq)}
               display={() => fmtHz(bq.f)} parse={(tx) => { const v = parseNum(tx); return v === null ? null : toPos(v, lim.freq); }}
-              onchange={(p) => update(n, { f: Math.round(fromPos(p, lim.freq)) })} />
+              onchange={(p) => updateAll(n, { f: Math.round(fromPos(p, lim.freq)) })} />
           {/if}
-          {#if ti?.gain}
+          {#if blk}
+            <Knob size={46} caption={t("filters.slope")} unit="dB/Okt." label={t("filters.slopeFilterN", { n: tag(n) })} min={0} max={orders.length - 1}
+              value={Math.max(0, orders.indexOf(ord))} options={orders.map((o, i) => ({ value: i, label: String(o * 6) }))}
+              onchange={(i) => toBlock(n, blk.kind?.char ?? "bw", blk.dir, orders[i])} />
+          {/if}
+          {#if !blk && ti?.gain}
             <Knob size={46} caption={t("common.level")} unit="dB" label={t("filters.levelFilterN", { n: tag(n) })} min={lim.bqGain[0]} max={lim.bqGain[1]} value={bq.gain}
               display={(v) => (v / 10).toFixed(1)} parse={(tx) => { const v = parseNum(tx); return v === null ? null : Math.round(v * 10); }}
               onchange={(v) => update(n, { gain: v })} />
           {/if}
-          {#if ti?.q}
+          {#if !blk && ti?.q}
             <Knob size={46} caption={t("filters.q")} unit="Q" label={t("filters.qFilterN", { n: tag(n) })} min={0} max={STEPS} value={toPos(bq.q, qRange)}
               display={() => String(bq.q / 1000)} parse={(tx) => { const v = parseNum(tx); return v === null ? null : toPos(v * 1000, qRange); }}
               onchange={(p) => update(n, { q: Math.round(fromPos(p, qRange)) })} />
           {/if}
-          {#if ti?.b === "Winkel (°)"}
+          {#if !blk && ti?.b === "Winkel (°)"}
             <Knob size={46} caption={t("filters.angle")} unit="°" label={t("filters.angleFilterN", { n: tag(n) })} min={1} max={359} value={clamp(bq.b, [1, 359])}
               onchange={(v) => update(n, { b: v })} />
-          {:else if ti?.b}
+          {:else if !blk && ti?.b}
             <Knob size={46} caption={t("filters.bandwidth")} unit="Hz" label={t("filters.bandwidthFilterN", { n: tag(n) })} min={0} max={STEPS} value={toPos(bq.b, bwRange)}
               display={() => fmtHz(bq.b)} parse={(tx) => { const v = parseNum(tx); return v === null ? null : toPos(v, bwRange); }}
               onchange={(p) => update(n, { b: Math.round(fromPos(p, bwRange)) })} />
           {/if}
         </div>
+        {#if blk}<span class="bqn" data-testid="block-biquads">{blk.slots.length === 1 ? t("filters.oneBiquad") : t("filters.nBiquads", { n: blk.slots.length })}</span>{/if}
       </div>
     {/each}
     <button class="add" onclick={() => add("filter")} disabled={(!free && !canGrow) || !!poolBusy} title={free ? t("filters.addFilter") : t("filters.addFilterGetsMore")}><span class="plus">+</span><span>{t("filters.filters")}</span></button>
@@ -446,10 +502,10 @@
       {/if}
     </div>
   {/if}
-  <ResponsePlot filters={used.map((s) => ({ ...s, label: tag(s.n) }))} {rate} freq={lim.freq} view={zoom ? view : undefined} {overlays} sum={sumParts} gainRange={lim.bqGain} {selected} {showPhase}
+  <ResponsePlot filters={used.map((s) => ({ ...s, label: tag(s.n), point: (blockOf(s.n)?.slots[0] ?? s.n) === s.n }))} {rate} freq={lim.freq} view={zoom ? view : undefined} {overlays} sum={sumParts} gainRange={lim.bqGain} {selected} {showPhase}
     onselect={(n) => (selected = n)}
-    onmove={(n, f, g) => update(n, g === null ? { f } : { f, gain: g })}
-    onq={(n, k) => update(n, { q: clamp(Math.round(d.biquads[ch][n].q * k), lim.bqQ) })} />
+    onmove={(n, f, g) => (g === null ? updateAll(n, { f }) : update(n, { f, gain: g }))}
+    onq={(n, k) => { if (!blockOf(n)) update(n, { q: clamp(Math.round(d.biquads[ch][n].q * k), lim.bqQ) }); }} />
 </section>
 
 <!-- EQ bands -->
@@ -565,6 +621,7 @@
   .knobs :global(.knob) { width: 5rem !important; }
   .knobs :global(.knob .val input) { max-width: 3.6rem; }
   .card .del { margin-left: 0; }
+  .bqn { align-self: flex-end; margin-top: -.35rem; font-size: .68rem; color: var(--faint); }
 
   .strip { width: 4.5rem; padding: .4rem .3rem; gap: .35rem; }
   .strip .sw { width: 100%; padding: .12rem 0; }

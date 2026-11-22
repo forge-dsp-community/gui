@@ -1,9 +1,11 @@
 <script lang="ts">
   import { t } from "../lib/i18n/index.svelte";
   // Rotary control: drag up/down, wheel or arrow keys while focused, value editable below.
-  let { value, min = 0, max = 100, step = 1, label, caption = "", unit = "", size = 56, disabled = false, display, parse, onchange }:
+  let { value, min = 0, max = 100, step = 1, label, caption = "", unit = "", size = 56, disabled = false, display, parse, options, onchange }:
     { value: number; min?: number; max?: number; step?: number; label: string; caption?: string; unit?: string;
       size?: number; disabled?: boolean;
+      /** detents with names: the value field is a list to pick from instead of free text (gui#47) */
+      options?: { value: number; label: string }[];
       /** text of the value field and its way back, for scales that are not the knob's own (log frequency) */
       display?: (v: number) => string; parse?: (text: string) => number | null;
       onchange: (v: number) => void } = $props();
@@ -19,6 +21,11 @@
     return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${R} ${R} 0 ${to - from > 180 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
   };
   const angle = $derived(START + SWEEP * frac);
+  // detents (gui#47): a short mark across the rail at every position of the list
+  const detents = $derived(options && max > min ? options.map((o) => {
+    const a = START + SWEEP * ((o.value - min) / (max - min));
+    return [polar(a, R - 4), polar(a, R + 4)];
+  }) : []);
   const tip = $derived(polar(angle, 13));
 
   const shown = $derived(display ? display(value) : String(value));
@@ -59,10 +66,13 @@
     onpointercancel={() => (drag = null)} onkeydown={key} onwheel={wheel} ondblclick={() => emit(value > min ? min : max)}>
     <path class="rail" d={arc(START, START + SWEEP)} />
     {#if frac > 0}<path class="fill" d={arc(START, angle)} />{/if}
+    {#each detents as [[x0, y0], [x1, y1]]}<line class="detent" x1={x0} y1={y0} x2={x1} y2={y1} />{/each}
     <circle class="cap-c" cx="28" cy="28" r="14" />
     <line class="tick" x1="28" y1="28" x2={tip[0]} y2={tip[1]} />
   </svg>
-  <label class="val num"><input value={shown} inputmode="decimal" aria-label="{label}, {t("common.value")}" {disabled} onchange={typed} />{#if unit}<span>{unit}</span>{/if}</label>
+  <label class="val num">{#if options}<select value={value} aria-label="{label}, {t("common.value")}" {disabled}
+      onchange={(e) => emit(Number(e.currentTarget.value))}>{#each options as o}<option value={o.value}>{o.label}</option>{/each}</select>{:else}<input
+      value={shown} inputmode="decimal" aria-label="{label}, {t("common.value")}" {disabled} onchange={typed} />{/if}{#if unit}<span>{unit}</span>{/if}</label>
 </div>
 
 <style>
@@ -75,13 +85,16 @@
   .rail, .fill { fill: none; stroke-width: 4; stroke-linecap: round; }
   .rail { stroke: var(--line-strong); }
   .fill { stroke: var(--accent); }
+  .detent { stroke: var(--fg); stroke-width: 1.2; stroke-linecap: round; opacity: .55; }
   .cap-c { fill: var(--raised); stroke: var(--line-strong); }
   .tick { stroke: var(--fg); stroke-width: 2; stroke-linecap: round; }
   .zero .tick { stroke: var(--faint); }
   .val { display: flex; align-items: baseline; gap: .15rem; font-size: .75rem; color: var(--muted); }
-  .knob .val input { width: 100%; min-width: 2.6rem; text-align: center; border: 1px solid transparent; background: none; padding: .1rem .15rem; border-radius: 6px;
+  .knob .val select { appearance: none; -webkit-appearance: none; cursor: pointer; text-align-last: center; }
+  .knob .val select option { background: var(--bg); }
+  .knob .val input, .knob .val select { width: 100%; min-width: 2.6rem; text-align: center; border: 1px solid transparent; background: none; padding: .1rem .15rem; border-radius: 6px;
     font: inherit; font-size: .9rem; color: var(--fg); }
   .zero .val input:not(:focus) { color: var(--faint); }
-  .val input:hover { border-color: var(--line-strong); }
-  .val input:focus { border-color: var(--accent); outline: none; background: var(--raised); }
+  .val input:hover, .val select:hover { border-color: var(--line-strong); }
+  .val input:focus, .val select:focus { border-color: var(--accent); outline: none; background: var(--raised); }
 </style>

@@ -119,3 +119,26 @@ describe("S/PDIF from the DSP, hints (gui#42)", () => {
     done();
   });
 });
+
+describe("filters: passes of higher order as one block (gui#47)", () => {
+  beforeAll(async () => {
+    await connect("demo");
+  });
+  it("output 1: the two Butterworth 12 at 3200 Hz are one Linkwitz-Riley 24 card with 2 biquads", () => {
+    history.replaceState(null, "", "/?demo");
+    const el = document.createElement("div");
+    document.body.appendChild(el);
+    const c = mount(Filters, { target: el });
+    flushSync();
+    const cards = [...el.querySelectorAll(".cards .card")];
+    const blk = cards.find((k) => k.querySelector('[data-testid="block-biquads"]'))!;
+    expect(blk.querySelector('[data-testid="block-biquads"]')?.textContent).toMatch(/^2 /);
+    expect((blk.querySelector(".cardhead select") as HTMLSelectElement).value).toBe("lr:hp");
+    const slope = blk.querySelector(".knob .val select") as HTMLSelectElement;
+    expect([...slope.options].map((o) => o.textContent)).toEqual(["12", "24", "36", "48"]);
+    expect(slope.selectedOptions[0].textContent).toBe("24");
+    expect(cards.length).toBe(2);   // block + treble shelf; the second high pass has no card of its own
+    unmount(c);
+    el.remove();
+  });
+});

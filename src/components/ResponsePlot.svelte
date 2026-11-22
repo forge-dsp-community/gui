@@ -6,7 +6,7 @@
   import { chainResponse, coeffs, isActive, logFreqs, sumResponse, typeInfo, type SumPart } from "../lib/dsp/biquad";
 
   let { filters, rate, freq, view, overlays = [], sum = null, gainRange, selected, showPhase, onselect, onmove, onq, showTotal = true }: {
-    filters: { n: number; bq: Biquad; label?: string | number }[]; rate: number; freq: [number, number];
+    filters: { n: number; bq: Biquad; label?: string | number; point?: boolean }[]; rate: number; freq: [number, number];
     /** range of the frequency axis (a section of `freq`); the handles still move within `freq` */
     view?: [number, number];
     /** other channels drawn behind this one, for comparison */
@@ -99,7 +99,7 @@
   {#if area}<path class="single" d={area} />{/if}
   {#if showTotal}<path class="total" d={line(total.db, y)} />{/if}
   {#if sumCurve}<path class="sum" d={line(sumCurve.db, y)}><title>{t("ui.sumElectricalLevelPolarity")}</title></path>{/if}
-  {#each active.filter((f) => f.bq.f >= lo && f.bq.f <= hi) as f}
+  {#each active.filter((f) => f.point !== false && f.bq.f >= lo && f.bq.f <= hi) as f}
     <g class="handle" class:sel={f.n === selected} transform="translate({x(f.bq.f)} {y(handleDb(f.bq))})">
       <circle r="11" role="slider" tabindex="0" aria-label="Filter {f.label ?? f.n}: {f.bq.f} Hz" aria-valuenow={f.bq.f}
         aria-valuemin={freq[0]} aria-valuemax={freq[1]}
